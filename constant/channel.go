@@ -60,7 +60,7 @@ const (
 
 )
 
-var ChannelBaseURLs = []string{
+var channelBaseURLs = []string{
 	"",                                    // 0
 	"https://api.openai.com",              // 1
 	"https://oa.api2d.net",                // 2

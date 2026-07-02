@@ -103,6 +103,9 @@ export function getChannelTypeIcon(type: number): string {
     54: 'Doubao', // DoubaoVideo
     56: 'Replicate', // Replicate
 
+    // sudoapi: Official Seedance task adaptor.
+    10001: 'Doubao', // Seedance
+
     // Tools & Platforms
     37: 'Dify', // Dify
     38: 'Jina', // Jina
