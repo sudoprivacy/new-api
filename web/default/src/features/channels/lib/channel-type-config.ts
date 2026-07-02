@@ -144,6 +144,13 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       models: 'Models exposed by this channel',
     },
   },
+
+  // sudoapi: Official Seedance task adaptor.
+  10001: {
+    id: 10001,
+    icon: 'seedance',
+    name: CHANNEL_TYPES[10001],
+  },
 }
 
 /**
