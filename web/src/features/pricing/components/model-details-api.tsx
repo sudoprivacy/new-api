@@ -423,11 +423,88 @@ function buildImageSample(lang: Lang, ctx: SampleContext): string {
   ].join('\n')
 }
 
+// sudoapi: Official Seedance task adaptor.
+function buildSeedanceSample(lang: Lang, ctx: SampleContext) {
+  console.log(lang)
+  const url = `${ctx.baseUrl}${ctx.endpointPath}`
+  if (lang === 'curl') {
+    const body = JSON.stringify(
+      {
+        model: ctx.modelName,
+        content: [{ type: "text", text: "A little boy is eating an apple" }],
+        generate_audio: true,
+        watermark: false,
+        ratio: '16:9',
+        duration: 10,
+        resolution: "1080p",
+      },
+      null,
+      2
+    )
+    return [
+      `curl ${url} \\`,
+      `  -H "Authorization: Bearer $${ctx.apiKeyEnv}" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '${body.replace(/\n/g, '\n     ')}'`,
+    ].join('\n')
+  }
+  if (lang === 'python') {
+    return [
+      `from urllib.request import urlopen, Request`,
+      `import json`,
+      '',
+      `url = "${url}"`,
+      `headers = {`,
+      `    "Authorization": "Bearer $${ctx.apiKeyEnv}",`,
+      `    "Content-Type": "application/json",`,
+      `}`,
+      `data = {`,
+      `    "model": "${ctx.modelName}",`,
+      `    "content": [{ "type": "text", "text": "A little boy is eating an apple" }],`,
+      `    "generate_audio": True,`,
+      `    "watermark": False,`,
+      `    "ratio": "16:9",`,
+      `    "duration": 10,`,
+      `    "resolution": "1080p",`,
+      `}`,
+      `req = Request(url, headers=headers, data=json.dumps(data).encode("utf-8"))`,
+      `with urlopen(req) as resp:`,
+      `    print(resp.read().decode("utf-8"))`,
+    ].join('\n')
+  }
+  if (lang === 'typescript') {
+    return [
+      `const response = await fetch('${url}', {`,
+      `  method: 'POST',`,
+      `  headers: {`,
+      `    Authorization: \`Bearer \${process.env.${ctx.apiKeyEnv}}\`,`,
+      `    'Content-Type': 'application/json',`,
+      `  },`,
+      `  body: JSON.stringify({`,
+      `    model: '${ctx.modelName}',`,
+      `    content: [{ type: 'text', text: 'A little boy is eating an apple' }],`,
+      `    generate_audio: true,`,
+      `    watermark: false,`,
+      `    ratio: '16:9',`,
+      `    duration: 10,`,
+      `    resolution: "1080p",`,
+      `  }),`,
+      `})`,
+      '',
+      `const data = await response.json()`,
+      `console.log(data)`,
+    ].join('\n')
+  }
+  return '// The code is the same as TypeScript'
+}
+
 function buildSample(
   lang: Lang,
   endpointType: string,
   ctx: SampleContext
 ): string {
+  // sudoapi: Official Seedance task adaptor.
+  if (endpointType === 'seedance') return buildSeedanceSample(lang, ctx)
   if (endpointType === 'anthropic') return buildAnthropicSample(lang, ctx)
   if (endpointType === 'gemini') return buildGeminiSample(lang, ctx)
   if (endpointType === 'embeddings' || endpointType === 'jina-rerank')
@@ -489,7 +566,7 @@ function CodeSamplesSection(props: {
 
   const code = buildSample(lang, activeEndpoint.type, {
     baseUrl,
-    apiKeyEnv: 'NEW_API_KEY',
+    apiKeyEnv: 'YOUR_API_KEY',
     modelName: props.model.model_name || '',
     endpointType: activeEndpoint.type,
     endpointPath: activeEndpoint.path,

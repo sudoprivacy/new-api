@@ -45,7 +45,15 @@ export function getChannelTypeLabel(type: number): string {
  * Maps channel types to Lobe icon names using type number (language-independent)
  */
 export function getChannelTypeIcon(type: number): string {
+  // sudoapi: Official Seedance task adaptor.
+  const sudoType2Icon: Record<number, string> = {
+    10001: 'Doubao', // Seedance
+  }
+
   const TYPE_TO_ICON: Record<number, string> = {
+    // sudoapi: Official Seedance task adaptor.
+    ...sudoType2Icon,
+
     // OpenAI family
     1: 'OpenAI', // OpenAI
     6: 'OpenAI', // OpenAIMax

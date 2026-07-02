@@ -42,10 +42,22 @@ export interface ChannelTypeConfig {
   }
 }
 
+// sudoapi: Official Seedance task adaptor.
+const sudoChannelTypeConfigs: Record<number, ChannelTypeConfig> = {
+  10001: {
+    id: 10001,
+    icon: 'seedance',
+    name: CHANNEL_TYPES[10001],
+  },
+}
+
 /**
  * Configuration for each channel type
  */
 export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
+  // sudoapi: Official Seedance task adaptor.
+  ...sudoChannelTypeConfigs,
+
   1: {
     id: 1,
     name: CHANNEL_TYPES[1],
