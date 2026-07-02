@@ -21,7 +21,19 @@ For commercial licensing, please contact support@quantumnous.com
 // All label/name values are i18n keys; use t(value) when displaying.
 // ============================================================================
 
+// sudoapi: Official Seedance task adaptor.
+const sudoChannelTypes = {
+  10001: 'Seedance',
+}
+// sudoapi: Official Seedance task adaptor.
+const sudoChannelTypeDisplayOrder: number[] = [
+  10001,
+]
+
 export const CHANNEL_TYPES = {
+  // sudoapi: Official Seedance task adaptor.
+  ...sudoChannelTypes,
+
   0: 'Unknown',
   1: 'OpenAI',
   2: 'MjProxy',
@@ -81,6 +93,9 @@ export const CHANNEL_TYPES = {
 } as const
 
 const CHANNEL_TYPE_DISPLAY_ORDER: number[] = [
+  // sudoapi: Official Seedance task adaptor.
+  ...sudoChannelTypeDisplayOrder,
+
   1, 14, 33, 24, 43, 3, 41, 48, 58, 42, 34, 20, 4, 40, 27, 25, 17, 26, 15, 46,
   23, 18, 45, 31, 35, 49, 19, 47, 37, 38, 39, 11, 8, 57, 59, 22, 21, 44, 2, 5,
   36, 50, 51, 52, 53, 54, 55, 56,

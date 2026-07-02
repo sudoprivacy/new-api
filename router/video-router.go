@@ -49,4 +49,13 @@ func SetVideoRouter(router *gin.Engine) {
 		// Maps to: /?Action=CVSync2AsyncSubmitTask&Version=2022-08-31 and /?Action=CVSync2AsyncGetResult&Version=2022-08-31
 		jimengOfficialGroup.POST("/", controller.RelayTask)
 	}
+
+	// sudoapi: Official Seedance task adaptor.
+	seedanceGroup := router.Group("/volcengine")
+	seedanceGroup.Use(middleware.RouteTag("relay"))
+	seedanceGroup.Use(middleware.TokenAuth(), middleware.Distribute())
+	{
+		seedanceGroup.POST("/api/v3/contents/generations/tasks", controller.RelayTask)
+		seedanceGroup.GET("/api/v3/contents/generations/tasks/:task_id", controller.RelayTaskFetch)
+	}
 }

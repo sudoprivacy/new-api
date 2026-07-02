@@ -6,6 +6,9 @@ import "github.com/QuantumNous/new-api/constant"
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
 	var endpointTypes []constant.EndpointType
 	switch channelType {
+	// sudoapi: Official Seedance task adaptor.
+	case constant.ChannelTypeSeedance:
+		endpointTypes = []constant.EndpointType{}
 	case constant.ChannelTypeJina:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeJinaRerank}
 	//case constant.ChannelTypeMidjourney, constant.ChannelTypeMidjourneyPlus:

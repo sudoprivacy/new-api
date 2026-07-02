@@ -64,8 +64,18 @@ export function getQuotaTypeLabels(
   }
 }
 
+// sudoapi: Official Seedance task adaptor.
+const sudoEndpointTypes = {
+  SEEDANCE: 'seedance'
+}
+const sudoEndpointLables = {
+  [sudoEndpointTypes.SEEDANCE]: 'Seedance',
+}
+
 /** Endpoint type options */
 export const ENDPOINT_TYPES = {
+  // sudoapi: Official Seedance task adaptor.
+  ...sudoEndpointTypes,
   ALL: 'all',
   OPENAI: 'openai',
   OPENAI_RESPONSE: 'openai-response',
@@ -85,6 +95,8 @@ export function getEndpointTypeLabels(
   t: TFunction
 ): Record<EndpointTypeOption, string> {
   return {
+    // sudoapi: Official Seedance task adaptor.
+    ...sudoEndpointLables,
     [ENDPOINT_TYPES.ALL]: t('All Types'),
     [ENDPOINT_TYPES.OPENAI]: 'Chat',
     [ENDPOINT_TYPES.OPENAI_RESPONSE]: 'Response',

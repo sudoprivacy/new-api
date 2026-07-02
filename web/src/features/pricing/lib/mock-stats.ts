@@ -790,6 +790,8 @@ function apiCategoryOf(model: PricingModel): ApiCategory {
 export function buildSupportedParameters(
   model: PricingModel
 ): SupportedParameter[] {
+  // sudoapi: Official Seedance task adaptor.
+  if ((model.supported_endpoint_types || []).includes("seedance")) return []
   const cat = apiCategoryOf(model)
   if (cat === 'reasoning') return REASONING_PARAMS
   if (cat === 'embedding') return EMBEDDING_PARAMS
