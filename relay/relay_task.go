@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay/channel"
+	"github.com/QuantumNous/new-api/relay/channel/task/doubao"
 	"github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
@@ -410,6 +411,18 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 			return
 		}
 		taskResp = service.TaskErrorWrapperLocal(fmt.Errorf("not_implemented:%s", originTask.Platform), "not_implemented", http.StatusNotImplemented)
+		return
+	}
+
+	// sudoapi: Official Seedance task adaptor.
+	if strings.HasPrefix(c.Request.RequestURI, "/volcengine/api/v3/contents/generations/tasks") {
+		adaptor := doubao.SeedanceTaskAdaptor{}
+		data, err := adaptor.ConvertToSeedanceVideo(originTask)
+		if err != nil {
+			taskResp = service.TaskErrorWrapper(err, "convert_to_seedance_video_failed", http.StatusInternalServerError)
+			return
+		}
+		respBody = data
 		return
 	}
 
