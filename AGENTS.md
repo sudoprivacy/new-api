@@ -1,5 +1,10 @@
 # AGENTS.md — Project Conventions for new-api
 
+## Local Development Guide
+
+- Before changing code, AI agents MUST read and follow [`DEV.md`](DEV.md). It records the development rules for keeping local business changes isolated and minimizing conflicts when merging upstream updates.
+- Prefer the low-conflict structure described there: put substantial local logic in new marked files, keep existing upstream files to small integration points, and do not turn simple TPI/tool forwarding into relay channels unless channel behavior is actually required.
+
 ## Overview
 
 This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI providers (OpenAI, Claude, Gemini, Azure, AWS Bedrock, etc.) behind a unified API, with user management, billing, rate limiting, and an admin dashboard.
