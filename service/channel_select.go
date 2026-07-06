@@ -354,21 +354,24 @@ func SelectChannelForRequest(c *gin.Context, modelName string, retry *RetryParam
 			if usingGroup == "auto" {
 				showGroup = fmt.Sprintf("auto(%s)", selectGroup)
 			}
+			// sudoapi: return 400 instead of 503 for invalid/unknown model.
 			return nil, selectGroup, &ChannelSelectError{
-				StatusCode: http.StatusServiceUnavailable, Code: types.ErrorCodeModelNotFound, MessageID: i18n.MsgDistributorGetChannelFailed,
+				StatusCode: http.StatusBadRequest, Code: types.ErrorCodeModelNotFound, MessageID: i18n.MsgDistributorGetChannelFailed,
 				Params: map[string]any{"Group": showGroup, "Model": modelName, "Error": err.Error()},
 			}
 		}
 		if channel == nil {
+			// sudoapi: return 400 instead of 503 for invalid/unknown model.
 			return nil, selectGroup, &ChannelSelectError{
-				StatusCode: http.StatusServiceUnavailable, Code: types.ErrorCodeModelNotFound, MessageID: i18n.MsgDistributorNoAvailableChannel,
+				StatusCode: http.StatusBadRequest, Code: types.ErrorCodeModelNotFound, MessageID: i18n.MsgDistributorNoAvailableChannel,
 				Params: map[string]any{"Group": usingGroup, "Model": modelName}, NoAvailableChannel: true,
 			}
 		}
 	}
 	if ok, kind := model.ChannelSatisfiesFilters(channel, modelName, constraints.Filters); !ok {
+		// sudoapi: return 400 instead of 503 for invalid/unknown model.
 		return nil, selectGroup, &ChannelSelectError{
-			StatusCode: http.StatusServiceUnavailable, Code: types.ErrorCodeModelNotFound, MessageID: i18n.MsgDistributorNoAvailableChannel,
+			StatusCode: http.StatusBadRequest, Code: types.ErrorCodeModelNotFound, MessageID: i18n.MsgDistributorNoAvailableChannel,
 			Params:     map[string]any{"Group": common.GetContextKeyString(c, constant.ContextKeyUsingGroup), "Model": modelName},
 			FilterKind: kind, Channel: channel, NoAvailableChannel: true,
 		}

@@ -238,7 +238,8 @@ func TestDistributeHidesTaskPluginDetailsButLogsDiagnostics(t *testing.T) {
 				recorder := httptest.NewRecorder()
 				router.ServeHTTP(recorder, request)
 
-				require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+				// sudoapi: return 400 instead of 503 for invalid/unknown model.
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
 				requestID := recorder.Header().Get(common.RequestIdKey)
 				require.NotEmpty(t, requestID)
 				assert.JSONEq(t, fmt.Sprintf(`{"error":{"message":%q,"type":"new_api_error","code":"model_not_found"}}`,
