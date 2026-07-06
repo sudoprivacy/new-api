@@ -12,6 +12,10 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
+
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
@@ -23,8 +27,6 @@ import (
 	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/setting/reasoning"
 	"github.com/QuantumNous/new-api/types"
-	"github.com/gin-gonic/gin"
-	"github.com/samber/lo"
 )
 
 // https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference?hl=zh-cn#blob
@@ -446,6 +448,8 @@ func CovertOpenAI2Gemini(c *gin.Context, textRequest dto.GeneralOpenAIRequest, i
 	tool_call_ids := make(map[string]string)
 	var system_content []string
 	//shouldAddDummyModelMessage := false
+	// sudoapi: bypass gemini thoughtSignature when channel changes.
+	thoughtSignatureUseBypass := c.GetBool("retry_channel_changed")
 	for _, message := range textRequest.Messages {
 		if message.Role == "system" || message.Role == "developer" {
 			system_content = append(system_content, message.StringContent())
@@ -511,6 +515,12 @@ func CovertOpenAI2Gemini(c *gin.Context, textRequest dto.GeneralOpenAIRequest, i
 						FunctionName: call.Function.Name,
 						Arguments:    args,
 					},
+				}
+				// sudoapi: bypass gemini thoughtSignature when channel changes.
+				if thoughtSignatureUseBypass {
+					toolCall.ThoughtSignature = json.RawMessage(strconv.Quote(thoughtSignatureBypassValue))
+				} else {
+					toolCall.ThoughtSignature = json.RawMessage(gjson.GetBytes(call.ExtraContent, "google.thought_signature").Raw)
 				}
 				if shouldAttachThoughtSignature && !signatureAttached && hasFunctionCallContent(toolCall.FunctionCall) && len(toolCall.ThoughtSignature) == 0 {
 					toolCall.ThoughtSignature = json.RawMessage(strconv.Quote(thoughtSignatureBypassValue))

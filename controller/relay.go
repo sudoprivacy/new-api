@@ -187,6 +187,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
+	previousChannelID := -1
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
 		relayInfo.RetryIndex = retryParam.GetRetry()
@@ -196,6 +197,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			newAPIError = channelErr
 			break
 		}
+		// sudoapi: bypass gemini thoughtSignature when channel changes.
+		if previousChannelID != -1 && previousChannelID != channel.Id {
+			c.Set("retry_channel_changed", true)
+		}
+		previousChannelID = channel.Id
 
 		addUsedChannel(c, channel.Id)
 		bodyStorage, bodyErr := common.GetBodyStorage(c)

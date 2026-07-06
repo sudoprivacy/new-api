@@ -1,10 +1,12 @@
 package gemini
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/dto"
@@ -26,17 +28,23 @@ type Adaptor struct {
 
 func (a *Adaptor) ConvertGeminiRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.GeminiChatRequest) (any, error) {
 	if len(request.Contents) > 0 {
+		// sudoapi: bypass gemini thoughtSignature when channel changes.
+		thoughtSignatureUseBypass := c.GetBool("retry_channel_changed")
 		for i, content := range request.Contents {
 			if i == 0 {
 				if request.Contents[0].Role == "" {
 					request.Contents[0].Role = "user"
 				}
 			}
-			for _, part := range content.Parts {
+			for j, part := range content.Parts {
 				if part.FileData != nil {
 					if part.FileData.MimeType == "" && strings.Contains(part.FileData.FileUri, "www.youtube.com") {
 						part.FileData.MimeType = "video/webm"
 					}
+				}
+				// sudoapi: bypass gemini thoughtSignature when channel changes.
+				if thoughtSignatureUseBypass && len(part.ThoughtSignature) != 0 {
+					request.Contents[i].Parts[j].ThoughtSignature = json.RawMessage(strconv.Quote(thoughtSignatureBypassValue))
 				}
 			}
 		}
