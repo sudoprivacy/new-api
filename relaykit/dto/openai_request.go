@@ -257,6 +257,9 @@ type ToolCallRequest struct {
 	Type     string          `json:"type"`
 	Function FunctionRequest `json:"function,omitempty"`
 	Custom   json.RawMessage `json:"custom,omitempty"`
+
+	// sudoapi: bypass gemini thoughtSignature when channel changes.
+	ExtraContent json.RawMessage `json:"extra_content,omitempty"`
 }
 
 type FunctionRequest struct {
