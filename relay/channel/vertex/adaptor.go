@@ -94,17 +94,13 @@ func removeFunctionCallIDs(request *dto.GeminiChatRequest) {
 }
 
 func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
-	claudeAdaptor := claude.Adaptor{}
-	if _, err := claudeAdaptor.ConvertClaudeRequest(c, info, request); err != nil {
+	// sudoapi: convert claude to vertex
+	adaptor := openai.Adaptor{}
+	oaiReq, err := adaptor.ConvertClaudeRequest(c, info, request)
+	if err != nil {
 		return nil, err
 	}
-	if v, ok := claudeModelMap[info.UpstreamModelName]; ok {
-		c.Set("request_model", v)
-	} else {
-		c.Set("request_model", request.Model)
-	}
-	vertexClaudeReq := copyRequest(request, anthropicVersion)
-	return vertexClaudeReq, nil
+	return a.ConvertOpenAIRequest(c, info, oaiReq.(*dto.GeneralOpenAIRequest))
 }
 
 func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.AudioRequest) (io.Reader, error) {
