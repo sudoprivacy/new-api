@@ -1,9 +1,14 @@
 package oaichat
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -12,7 +17,6 @@ import (
 	relaymeta "github.com/QuantumNous/new-api/service/relayconvert/internal/meta"
 	sharedgemini "github.com/QuantumNous/new-api/service/relayconvert/internal/shared/gemini"
 	"github.com/QuantumNous/new-api/setting/model_setting"
-	"github.com/gin-gonic/gin"
 )
 
 func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.GeneralOpenAIRequest, info *relaycommon.RelayInfo) (*dto.GeminiChatRequest, error) {
@@ -231,6 +235,8 @@ func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.Ge
 
 	toolCallIDs := make(map[string]string)
 	var systemContent []string
+	// sudoapi: bypass gemini thoughtSignature when channel changes.
+	thoughtSignatureUseBypass := c.GetBool("retry_channel_changed")
 	for _, message := range textRequest.Messages {
 		if message.Role == "system" || message.Role == "developer" {
 			systemContent = append(systemContent, message.StringContent())
@@ -291,6 +297,12 @@ func OpenAIChatRequestToGeminiGenerateContent(c *gin.Context, textRequest dto.Ge
 						FunctionName: call.Function.Name,
 						Arguments:    args,
 					},
+				}
+				// sudoapi: bypass gemini thoughtSignature when channel changes.
+				if thoughtSignatureUseBypass {
+					toolCall.ThoughtSignature = json.RawMessage(strconv.Quote(sharedgemini.ThoughtSignatureBypassValue))
+				} else {
+					toolCall.ThoughtSignature = json.RawMessage(gjson.GetBytes(call.ExtraContent, "google.thought_signature").Raw)
 				}
 				if shouldAttachThoughtSignature && !signatureAttached && sharedgemini.AttachFunctionCallThoughtSignature(&toolCall) {
 					signatureAttached = true
