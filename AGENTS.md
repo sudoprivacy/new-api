@@ -1,5 +1,7 @@
 # AGENTS.md — Project Conventions for new-api
 
+DO NOT send optional commentary
+
 ## Local Development Guide
 
 - Before changing code, AI agents MUST read and follow [`DEV.md`](DEV.md). It records the development rules for keeping local business changes isolated and minimizing conflicts when merging upstream updates.
