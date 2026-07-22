@@ -95,6 +95,34 @@ func GetTopUpInfo(c *gin.Context) {
 		}
 	}
 
+	// sudoapi: Fuiou payment.
+	enableFuiou := setting.FuiouEnabled()
+	if enableFuiou {
+		hasFuiouAlipay := lo.ContainsBy(payMethods, func(method map[string]string) bool {
+			return method["type"] == model.PaymentMethodFuiouAlipay
+		})
+		if !hasFuiouAlipay {
+			payMethods = append(payMethods, map[string]string{
+				"name":      "Fuiou Alipay",
+				"type":      model.PaymentMethodFuiouAlipay,
+				"icon":      "SiAlipay",
+				"min_topup": strconv.FormatInt(getMinTopup(), 10),
+			})
+		}
+
+		hasFuiouWeChat := lo.ContainsBy(payMethods, func(method map[string]string) bool {
+			return method["type"] == model.PaymentMethodFuiouWeChat
+		})
+		if !hasFuiouWeChat {
+			payMethods = append(payMethods, map[string]string{
+				"name":      "Fuiou WeChat",
+				"type":      model.PaymentMethodFuiouWeChat,
+				"icon":      "SiWechat",
+				"min_topup": strconv.FormatInt(getMinTopup(), 10),
+			})
+		}
+	}
+
 	data := gin.H{
 		"enable_online_topup":              isEpayTopUpEnabled(),
 		"enable_stripe_topup":              isStripeTopUpEnabled(),
@@ -119,6 +147,8 @@ func GetTopUpInfo(c *gin.Context) {
 		"amount_options":          operation_setting.GetPaymentSetting().AmountOptions,
 		"discount":                operation_setting.GetPaymentSetting().AmountDiscount,
 		"topup_link":              common.TopUpLink,
+		// sudoapi: Fuiou payment.
+		"enable_fuiou_topup": enableFuiou,
 	}
 	common.ApiSuccess(c, data)
 }

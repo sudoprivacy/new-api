@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/config"
@@ -83,6 +85,13 @@ func InitOptionMap() {
 	common.OptionMap["Price"] = strconv.FormatFloat(operation_setting.Price, 'f', -1, 64)
 	common.OptionMap["USDExchangeRate"] = strconv.FormatFloat(operation_setting.USDExchangeRate, 'f', -1, 64)
 	common.OptionMap["MinTopUp"] = strconv.Itoa(operation_setting.MinTopUp)
+	// sudoapi: Fuiou payment.
+	common.OptionMap["FuiouPubKey"] = setting.FuiouPubKeyStr
+	common.OptionMap["FuiouPriKey"] = setting.FuiouPriKeyStr
+	common.OptionMap["FuiouMerchant"] = setting.FuiouMerchant
+	common.OptionMap["FuiouUrl"] = setting.FuiouUrl
+	common.OptionMap["FuiouCallback"] = setting.FuiouCallback
+	common.OptionMap["FuiouUnitPrice"] = setting.FuiouUnitPrice.String()
 	common.OptionMap["StripeMinTopUp"] = strconv.Itoa(setting.StripeMinTopUp)
 	common.OptionMap["StripeApiSecret"] = setting.StripeApiSecret
 	common.OptionMap["StripeWebhookSecret"] = setting.StripeWebhookSecret
@@ -404,6 +413,19 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.USDExchangeRate, _ = strconv.ParseFloat(value, 64)
 	case "MinTopUp":
 		operation_setting.MinTopUp, _ = strconv.Atoi(value)
+	// sudoapi: Fuiou payment.
+	case "FuiouPubKey":
+		err = setting.SetFuiouPubKey(value)
+	case "FuiouPriKey":
+		err = setting.SetFuiouPriKey(value)
+	case "FuiouMerchant":
+		setting.FuiouMerchant = value
+	case "FuiouUrl":
+		setting.FuiouUrl = value
+	case "FuiouCallback":
+		setting.FuiouCallback = value
+	case "FuiouUnitPrice":
+		setting.FuiouUnitPrice, err = decimal.NewFromString(value)
 	case "StripeApiSecret":
 		setting.StripeApiSecret = value
 	case "StripeWebhookSecret":
