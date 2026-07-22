@@ -28,6 +28,8 @@ import type {
   RedemptionResponse,
   AmountResponse,
   PaymentResponse,
+  FuiouPaymentResponse,
+  TopupStatusResponse,
   StripePaymentResponse,
   AffiliateCodeResponse,
   AffiliateTransferResponse,
@@ -119,6 +121,37 @@ export async function requestPayment(
     ...res.data,
     url: res.data.url || (res as unknown as { url?: string }).url,
   }
+}
+
+// sudoapi: Fuiou payment.
+/**
+ * Calculate payment amount for Fuiou payment
+ */
+export async function calculateFuiouAmount(request: AmountRequest): Promise<AmountResponse> {
+  const res = await api.post('/api/user/fuiou/amount', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Request Fuiou payment
+ */
+export async function requestFuiouPayment(request: PaymentRequest): Promise<FuiouPaymentResponse> {
+  const res = await api.post('/api/user/fuiou/pay', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Get topup order status
+ */
+export async function getTopupStatus(orderID: string): Promise<TopupStatusResponse> {
+  const res = await api.get(`/api/user/topup/${encodeURIComponent(orderID)}`, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
 }
 
 /**

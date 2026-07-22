@@ -61,6 +61,12 @@ import { safeNumberFieldProps } from '../utils/numeric-field'
 import { AmountDiscountVisualEditor } from './amount-discount-visual-editor'
 import { AmountOptionsVisualEditor } from './amount-options-visual-editor'
 import { CreemProductsVisualEditor } from './creem-products-visual-editor'
+import { FuiouSettingsSection } from './fuiou-settings-section'
+import {
+  appendFuiouSettingUpdates,
+  paymentFuiouSchema,
+  sanitizeFuiou,
+} from './fuiou-settings.ts'
 import { PaymentMethodsVisualEditor } from './payment-methods-visual-editor'
 import {
   formatJsonForEditor,
@@ -95,6 +101,8 @@ function isHttpOriginUrl(value: string) {
 }
 
 const paymentSchema = z.object({
+  // sudoapi: Fuiou payment.
+  ...paymentFuiouSchema,
   PayAddress: z.string().refine((value) => {
     const trimmed = value.trim()
     if (!trimmed) return true
@@ -418,6 +426,8 @@ export function PaymentSettingsSection({
 
   const onSubmit = async (values: PaymentFormValues) => {
     const sanitized = {
+      // sudoapi: Fuiou payment.
+      ...sanitizeFuiou(values),
       PayAddress: removeTrailingSlash(values.PayAddress),
       EpayId: values.EpayId.trim(),
       EpayKey: values.EpayKey.trim(),
@@ -460,6 +470,8 @@ export function PaymentSettingsSection({
     }
 
     const initial = {
+      // sudoapi: Fuiou payment.
+      ...sanitizeFuiou(initialRef.current),
       PayAddress: removeTrailingSlash(initialRef.current.PayAddress),
       EpayId: initialRef.current.EpayId.trim(),
       EpayKey: initialRef.current.EpayKey.trim(),
@@ -628,6 +640,9 @@ export function PaymentSettingsSection({
     ) {
       updates.push({ key: 'CreemProducts', value: sanitized.CreemProducts })
     }
+
+    // sudoapi: Fuiou payment.
+    appendFuiouSettingUpdates(updates, sanitized, initial)
 
     if (sanitized.WaffoEnabled !== initial.WaffoEnabled) {
       updates.push({ key: 'WaffoEnabled', value: sanitized.WaffoEnabled })
@@ -877,13 +892,16 @@ export function PaymentSettingsSection({
           />
           <Tabs defaultValue='general' className='min-w-0'>
             <div className='overflow-x-auto pb-1'>
-              <TabsList className='grid min-w-[44rem] grid-cols-6'>
+              {/*sudoapi: Fuiou payment.*/}
+              <TabsList className='grid min-w-[60em] grid-cols-7'>
                 <TabsTrigger value='general'>{t('General')}</TabsTrigger>
                 <TabsTrigger value='epay'>Epay</TabsTrigger>
                 <TabsTrigger value='stripe'>{t('Stripe')}</TabsTrigger>
                 <TabsTrigger value='creem'>Creem</TabsTrigger>
                 <TabsTrigger value='waffo-pancake'>Waffo Pancake</TabsTrigger>
                 <TabsTrigger value='waffo'>Waffo</TabsTrigger>
+                {/* sudoapi: Fuiou payment.*/}
+                <TabsTrigger value='fuiou'>{t('Fuiou')}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -1625,6 +1643,11 @@ export function PaymentSettingsSection({
                 payMethods={waffoPayMethods}
                 onPayMethodsChange={setWaffoPayMethods}
               />
+            </TabsContent>
+
+            {/*sudoapi: Fuiou payment.*/}
+            <TabsContent value='fuiou' className={paymentTabContentClassName}>
+              <FuiouSettingsSection control={form.control} />
             </TabsContent>
           </Tabs>
         </SettingsForm>

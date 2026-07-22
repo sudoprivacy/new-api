@@ -1,6 +1,30 @@
 {
   "sudoapi": "Local i18n overlay.",
   "translation": {
-
+    "Base URL of the Fuiou service": "Base URL of the Fuiou service",
+    "Base64-encoded RSA merchant private key from Fuiou": "Base64-encoded RSA merchant private key from Fuiou",
+    "Base64-encoded RSA public key from Fuiou": "Base64-encoded RSA public key from Fuiou",
+    "Configuration for Fuiou payment integration": "Configuration for Fuiou payment integration",
+    "Enter new private key to update": "Enter new private key to update",
+    "Enter new public key to update": "Enter new public key to update",
+    "For example, 7.3 means $1 requires paying ￥7.3": "For example, 7.3 means $1 requires paying ￥7.3",
+    "Fuiou": "Fuiou",
+    "Fuiou Callback Configuration:": "Fuiou Callback Configuration:",
+    "Fuiou callback URL": "Fuiou callback URL",
+    "Fuiou endpoint": "Fuiou endpoint",
+    "Fuiou exchange rate (CNY / USD)": "Fuiou exchange rate (CNY / USD)",
+    "Fuiou Gateway": "Fuiou Gateway",
+    "Fuiou merchant ID": "Fuiou merchant ID",
+    "Fuiou merchant private key": "Fuiou merchant private key",
+    "Fuiou notification callback address": "Fuiou notification callback address",
+    "Fuiou payment is enabled when merchant ID, public key, private key, endpoint, and callback address are configured.": "Fuiou payment is enabled when merchant ID, public key, private key, endpoint, and callback address are configured.",
+    "Fuiou public key": "Fuiou public key",
+    "fuiou_alipay": "Alipay",
+    "fuiou_wechat": "WeChat",
+    "Public base address for Fuiou payment callbacks. Only enter the site root domain, for example https://api.example.com": "Public base address for Fuiou payment callbacks. Only enter the site root domain, for example https://api.example.com",
+    "Payment expired or failed": "Payment expired or failed",
+    "Payment QR Code": "Payment QR Code",
+    "Recharge successful": "Recharge successful",
+    "Scan this QR code with your payment app to complete the payment.": "Scan this QR code with your payment app to complete the payment."
   }
 }

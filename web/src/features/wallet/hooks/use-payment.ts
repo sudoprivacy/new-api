@@ -21,6 +21,7 @@ import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import {
+  calculateFuiouAmount,
   calculateAmount,
   calculateStripeAmount,
   calculateWaffoAmount,
@@ -30,6 +31,7 @@ import {
   isApiSuccess,
 } from '../api'
 import {
+  isFuiouPayment,
   isStripePayment,
   isWaffoPayment,
   isWaffoPancakePayment,
@@ -44,6 +46,8 @@ import type { AmountRequest, AmountResponse } from '../types'
 type AmountCalculator = (request: AmountRequest) => Promise<AmountResponse>
 
 export interface PaymentAmountCalculators {
+  // sudoapi: Fuiou payment.
+  fuiou: AmountCalculator
   regular: AmountCalculator
   stripe: AmountCalculator
   waffo: AmountCalculator
@@ -51,6 +55,8 @@ export interface PaymentAmountCalculators {
 }
 
 const defaultPaymentAmountCalculators: PaymentAmountCalculators = {
+  // sudoapi: Fuiou payment.
+  fuiou: calculateFuiouAmount,
   regular: calculateAmount,
   stripe: calculateStripeAmount,
   waffo: calculateWaffoAmount,
@@ -63,7 +69,10 @@ export async function requestPaymentAmount(
   calculators: PaymentAmountCalculators = defaultPaymentAmountCalculators
 ): Promise<number> {
   let calculator = calculators.regular
-  if (isStripePayment(paymentType)) {
+  // sudoapi: Fuiou payment.
+  if (isFuiouPayment(paymentType)) {
+    calculator = calculators.fuiou
+  } else if (isStripePayment(paymentType)) {
     calculator = calculators.stripe
   } else if (isWaffoPayment(paymentType)) {
     calculator = calculators.waffo
