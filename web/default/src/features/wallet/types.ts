@@ -45,6 +45,16 @@ export type CreemPaymentResponse = ApiResponse<{ checkout_url: string }>
 export type WaffoPaymentResponse = ApiResponse<
   { payment_url?: string } | string
 >
+export type FuiouPaymentResponse = ApiResponse<{
+  order_date?: string
+  order_amt?: string
+  order_id?: string
+  order_info?: string
+}>
+export type TopupStatusResponse = ApiResponse<{
+  order_id: string
+  order_status: TopupStatus
+}>
 export type WaffoPancakePaymentResponse = ApiResponse<
   | {
       checkout_url?: string
@@ -120,6 +130,7 @@ export interface WaffoPayMethod {
  * Topup configuration information
  */
 export interface TopupInfo {
+  enable_fuiou_topup: boolean
   /** Whether online topup is enabled */
   enable_online_topup: boolean
   /** Whether Stripe topup is enabled */

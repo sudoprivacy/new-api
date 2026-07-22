@@ -27,6 +27,7 @@ import { getSelf } from '@/lib/api'
 import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
 import { BillingHistoryDialog } from './components/dialogs/billing-history-dialog'
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
+import { FuiouQrCodeDialog } from './components/dialogs/fuiou-qr-code-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
 import { TransferDialog } from './components/dialogs/transfer-dialog'
 import { RechargeFormCard } from './components/recharge-form-card'
@@ -90,8 +91,10 @@ export function Wallet(props: WalletProps) {
     amount: paymentAmount,
     calculating,
     processing,
+    fuiouQrCodePayment,
     calculatePaymentAmount,
     processPayment,
+    clearFuiouQrCode,
   } = usePayment()
   const {
     affiliateLink,
@@ -361,6 +364,18 @@ export function Wallet(props: WalletProps) {
         onConfirm={handleCreemConfirm}
         product={selectedCreemProduct}
         processing={creemProcessing}
+      />
+
+      <FuiouQrCodeDialog
+        open={Boolean(fuiouQrCodePayment)}
+        onOpenChange={(open) => {
+          if (!open) {
+            clearFuiouQrCode()
+          }
+        }}
+        onPaid={fetchUser}
+        orderId={fuiouQrCodePayment?.orderId ?? null}
+        qrCodeUrl={fuiouQrCodePayment?.qrCodeUrl ?? null}
       />
     </>
   )

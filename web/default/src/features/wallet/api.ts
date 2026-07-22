@@ -37,6 +37,8 @@ import type {
   CreemPaymentResponse,
   WaffoPaymentRequest,
   WaffoPaymentResponse,
+  FuiouPaymentResponse,
+  TopupStatusResponse,
   WaffoPancakePaymentRequest,
   WaffoPancakePaymentResponse,
 } from './types'
@@ -140,6 +142,42 @@ export async function requestWaffoPayment(
   request: WaffoPaymentRequest
 ): Promise<WaffoPaymentResponse> {
   const res = await api.post('/api/user/waffo/pay', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Calculate payment amount for Fuiou payment
+ */
+export async function calculateFuiouAmount(
+  request: AmountRequest
+): Promise<AmountResponse> {
+  const res = await api.post('/api/user/fuiou/amount', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Request Fuiou payment
+ */
+export async function requestFuiouPayment(
+  request: PaymentRequest
+): Promise<FuiouPaymentResponse> {
+  const res = await api.post('/api/user/fuiou/pay', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
+ * Get topup order status
+ */
+export async function getTopupStatus(
+  orderID: string
+): Promise<TopupStatusResponse> {
+  const res = await api.get(`/api/user/topup/${encodeURIComponent(orderID)}`, {
     skipBusinessError: true,
   } as Record<string, unknown>)
   return res.data

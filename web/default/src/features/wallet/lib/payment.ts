@@ -87,6 +87,13 @@ export function isWaffoPancakePayment(paymentType: string): boolean {
 }
 
 /**
+ * Check if payment method is Fuiou.
+ */
+export function isFuiouPayment(paymentType: string): boolean {
+  return paymentType === 'fuiou_alipay' || paymentType === 'fuiou_wechat'
+}
+
+/**
  * Get default payment type from topup info
  */
 export function getDefaultPaymentType(topupInfo: TopupInfo | null): string {
