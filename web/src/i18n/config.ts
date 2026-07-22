@@ -21,13 +21,29 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
 import { convertDetectedLanguage } from './languages'
-import en from './locales/en.json'
+import upstreamEn from './locales/en.json'
 import fr from './locales/fr.json'
 import ja from './locales/ja.json'
 import ru from './locales/ru.json'
 import vi from './locales/vi.json'
 import zhTW from './locales/zh-TW.json'
-import zhCN from './locales/zh.json'
+import upstreamZhCN from './locales/zh.json'
+import sudoEn from './sudo-en.json'
+import sudoZhCN from './sudo-zh.json'
+
+// sudoapi: Local i18n overlay.
+const en = {
+  translation: {
+    ...upstreamEn.translation,
+    ...sudoEn.translation,
+  },
+}
+const zhCN = {
+  translation: {
+    ...upstreamZhCN.translation,
+    ...sudoZhCN.translation,
+  },
+}
 
 export const resources = {
   en,
