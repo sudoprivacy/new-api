@@ -105,6 +105,11 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"GET /api/user/oauth/bindings":                 accessTokenScopeRule("account_security:read"),
 	"DELETE /api/user/oauth/bindings/:provider_id": accessTokenScopeRule("account_security:write"),
 
+	// sudoapi: Fuiou payment.
+	"GET /api/user/topup/:orderID": accessTokenScopeRule("wallet:read"),
+	"POST /api/user/fuiou/pay":     accessTokenScopeRule("wallet:write"),
+	"POST /api/user/fuiou/amount":  accessTokenScopeRule("wallet:read"),
+
 	// router/api-router.go: /api/user (admin)
 	"GET /api/user/":                                   accessTokenScopeRule("user:read"),
 	"GET /api/user/topup":                              accessTokenScopeRule("billing:read"),

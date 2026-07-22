@@ -27,6 +27,7 @@ import { getSelf } from '@/lib/api'
 import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
 import { BillingHistoryDialog } from './components/dialogs/billing-history-dialog'
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
+import { PaymentQRCodeDialog } from './components/dialogs/payment-qrcode-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
 import { TransferDialog } from './components/dialogs/transfer-dialog'
 import { RechargeFormCard } from './components/recharge-form-card'
@@ -35,6 +36,7 @@ import { WalletStatsCard } from './components/wallet-stats-card'
 import { DEFAULT_DISCOUNT_RATE, PAYMENT_TYPES } from './constants'
 import {
   useTopupInfo,
+  usePaymentFuiou,
   usePayment,
   useAffiliate,
   useRedemption,
@@ -46,6 +48,7 @@ import {
   getDefaultPaymentType,
   getMinTopupAmount,
   dispatchSelectedPayment,
+  isFuiouPayment,
 } from './lib'
 import type {
   UserWalletData,
@@ -125,6 +128,14 @@ export function Wallet(props: WalletProps) {
     }
   }, [])
 
+  // sudoapi: Fuiou payment.
+  const {
+    qrCodeValue,
+    onQRCodeClose,
+    creatingOrder: fuiouProcessing,
+    processPaymentFuiou,
+  } = usePaymentFuiou(fetchUser)
+
   useEffect(() => {
     fetchUser()
   }, [fetchUser])
@@ -193,6 +204,15 @@ export function Wallet(props: WalletProps) {
   // Handle payment confirmation
   const handlePaymentConfirm = async () => {
     if (!selectedPaymentMethod) return
+
+    // sudoapi: Fuiou payment.
+    if (isFuiouPayment(selectedPaymentMethod.type)) {
+      const success = await processPaymentFuiou(topupAmount, selectedPaymentMethod.type)
+      if (success) {
+        setConfirmDialogOpen(false)
+      }
+      return
+    }
 
     const success = await dispatchSelectedPayment(
       selectedPaymentMethod,
@@ -360,7 +380,8 @@ export function Wallet(props: WalletProps) {
         paymentAmount={paymentAmount}
         paymentMethod={selectedPaymentMethod}
         calculating={calculating}
-        processing={processing || waffoProcessing || pancakeProcessing}
+        // sudoapi: Fuiou payment.
+        processing={processing || waffoProcessing || pancakeProcessing || fuiouProcessing}
         discountRate={getDiscountRate()}
         usdExchangeRate={effectiveUsdExchangeRate}
       />
@@ -385,6 +406,8 @@ export function Wallet(props: WalletProps) {
         product={selectedCreemProduct}
         processing={creemProcessing}
       />
+      {/* sudoapi: Fuiou payment.*/}
+      <PaymentQRCodeDialog onClose={onQRCodeClose} qrCodeValue={qrCodeValue} />
     </>
   )
 }

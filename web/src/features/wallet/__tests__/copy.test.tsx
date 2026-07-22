@@ -83,6 +83,8 @@ it.each([
       <I18nextProvider i18n={i18n}>
         <RechargeFormCard
           topupInfo={{
+            // sudoapi: Fuiou payment.
+            enable_fuiou_topup: false,
             enable_online_topup: true,
             enable_stripe_topup: false,
             pay_methods: [],
