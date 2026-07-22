@@ -52,6 +52,16 @@ const getGroupDefaults = (settings: BillingSettings) => ({
     settings['group_ratio_setting.group_special_usable_group'],
 })
 
+// sudoapi: Fuiou payment.
+const getFuiouDefaults = (settings: BillingSettings) => ({
+  FuiouPubKey: settings.FuiouPubKey ?? '',
+  FuiouPriKey: settings.FuiouPriKey ?? '',
+  FuiouMerchant: settings.FuiouMerchant ?? '',
+  FuiouUrl: settings.FuiouUrl ?? '',
+  FuiouCallback: settings.FuiouCallback ?? '',
+  FuiouUnitPrice: settings.FuiouUnitPrice ?? 7.3,
+})
+
 const BILLING_SECTIONS = [
   {
     id: 'quota',
@@ -134,6 +144,8 @@ const BILLING_SECTIONS = [
     build: (settings: BillingSettings) => (
       <PaymentSettingsSection
         defaultValues={{
+          // sudoapi: Fuiou payment.
+          ...getFuiouDefaults(settings),
           PayAddress: settings.PayAddress,
           EpayId: settings.EpayId,
           EpayKey: settings.EpayKey,

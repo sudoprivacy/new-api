@@ -24,7 +24,19 @@ import {
   getBillingSectionMeta,
 } from './section-registry.tsx'
 
+// sudoapi: Fuiou payment.
+const defaultFuiouBillingSettings = {
+  FuiouPubKey: '',
+  FuiouPriKey: '',
+  FuiouMerchant: '',
+  FuiouUrl: '',
+  FuiouCallback: '',
+  FuiouUnitPrice: 7.3,
+}
+
 const defaultBillingSettings: BillingSettings = {
+  // sudoapi: Fuiou payment.
+  ...defaultFuiouBillingSettings,
   QuotaForNewUser: 0,
   PreConsumedQuota: 0,
   QuotaForInviter: 0,
