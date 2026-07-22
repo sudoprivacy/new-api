@@ -7,6 +7,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 
+	stackerrors "github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -30,6 +31,9 @@ const (
 	PaymentMethodWaffo        = "waffo"
 	PaymentMethodWaffoPancake = "waffo_pancake"
 	PaymentMethodBalance      = "balance"
+	// sudoapi: Fuiou payment.
+	PaymentMethodFuiouAlipay = "fuiou_alipay"
+	PaymentMethodFuiouWeChat = "fuiou_wechat"
 )
 
 const (
@@ -39,6 +43,8 @@ const (
 	PaymentProviderWaffo        = "waffo"
 	PaymentProviderWaffoPancake = "waffo_pancake"
 	PaymentProviderBalance      = "balance"
+	// sudoapi: Fuiou payment.
+	PaymentProviderFuiou = "fuiou"
 )
 
 var (
@@ -586,4 +592,81 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	}
 
 	return nil
+}
+
+// sudoapi: Fuiou payment.
+func RechargeCommon(orderID, logOtherInfo string) error {
+	if orderID == "" {
+		return errors.New("payment order id not provided")
+	}
+
+	var topUp TopUp
+	var quota int
+	now := common.GetTimestamp()
+
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		err := lockForUpdate(tx).Where("trade_no = ?", orderID).First(&topUp).Error
+		if err != nil {
+			return stackerrors.New("recharge order not found")
+		}
+
+		if topUp.PaymentProvider != PaymentProviderFuiou {
+			return ErrPaymentMethodMismatch
+		}
+
+		if topUp.Status != common.TopUpStatusPending {
+			return stackerrors.Errorf("invalid recharge order status: %s", topUp.Status)
+		}
+
+		topUp.CompleteTime = now
+		topUp.Status = common.TopUpStatusSuccess
+		if err = tx.Save(&topUp).Error; err != nil {
+			return stackerrors.Wrap(err, "update order failed")
+		}
+
+		quota = common.QuotaFromFloat(topUp.Money * common.QuotaPerUnit)
+		err = tx.Model(&User{}).
+			Where("id = ?", topUp.UserId).
+			Update("quota", gorm.Expr("quota + ?", quota)).
+			Error
+		if err != nil {
+			return stackerrors.Wrap(err, "update user quota failed")
+		}
+		return nil
+
+	})
+	if err != nil {
+		return err
+	}
+
+	username, _ := GetUsernameById(topUp.UserId, false)
+	err = LOG_DB.Create(&Log{
+		UserId:    topUp.UserId,
+		Username:  username,
+		CreatedAt: now,
+		Type:      LogTypeTopup,
+		Content:   fmt.Sprintf("Successfully recharged online, recharge amount: %v , Payment amount: %d", logger.FormatQuota(quota), topUp.Amount),
+		Other:     logOtherInfo,
+	}).Error
+	if err != nil {
+		common.SysError("failed to record log: " + err.Error())
+	}
+	return nil
+}
+
+func ExpireTopUp(orderID string) error {
+	return DB.Model(&TopUp{}).
+		Where("trade_no = ?", orderID).
+		Update("status", common.TopUpStatusExpired).
+		Error
+}
+
+func GetTopUp(orderID string, userID int) (*TopUp, error) {
+	var topUp TopUp
+	err := DB.
+		Where("trade_no = ?", orderID).
+		Where("user_id = ?", userID).
+		Take(&topUp).
+		Error
+	return &topUp, err
 }

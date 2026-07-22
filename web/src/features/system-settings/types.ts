@@ -246,7 +246,17 @@ export type ModelSettings = {
   'model_deployment.ionet.enabled': boolean
 }
 
-export type BillingSettings = {
+// sudoapi: Fuiou payment.
+export type FuiouBillingSettings = {
+  FuiouPubKey: string
+  FuiouPriKey: string
+  FuiouMerchant: string
+  FuiouUrl: string
+  FuiouCallback: string
+  FuiouUnitPrice: number
+}
+
+export type BillingSettings = FuiouBillingSettings & {
   QuotaForNewUser: number
   PreConsumedQuota: number
   QuotaForInviter: number
