@@ -1,6 +1,31 @@
 {
   "sudoapi": "Local i18n overlay.",
   "translation": {
-
+    "Base URL of the Fuiou service": "富友服务的基础网址",
+    "Base64-encoded RSA merchant private key from Fuiou": "富友提供的 Base64 编码 RSA 商户私钥",
+    "Base64-encoded RSA public key from Fuiou": "富友提供的 Base64 编码 RSA 公钥",
+    "Configuration for Fuiou payment integration": "富友支付集成配置",
+    "Enter Fuiou merchant ID": "请输入富友商户号",
+    "Enter new private key to update": "输入新私钥以更新",
+    "Enter new public key to update": "输入新公钥以更新",
+    "For example, 7.3 means $1 requires paying ￥7.3": "例如 7.3 表示 $1 需要支付 ￥7.3",
+    "Fuiou": "富友",
+    "Fuiou Callback Configuration:": "富友回调配置：",
+    "Fuiou callback URL": "富友回调 URL",
+    "Fuiou endpoint": "富友接口地址",
+    "Fuiou exchange rate (CNY / USD)": "富友汇率（CNY / USD）",
+    "Fuiou Gateway": "富友支付网关",
+    "Fuiou merchant ID": "富友商户号",
+    "Fuiou merchant private key": "富友商户私钥",
+    "Fuiou notification callback address": "富友通知回调地址",
+    "Fuiou payment is enabled when merchant ID, public key, private key, endpoint, and callback address are configured.": "配置商户号、公钥、私钥、接口地址和回调地址后，富友支付将启用。",
+    "Fuiou public key": "富友公钥",
+    "fuiou_alipay": "支付宝",
+    "fuiou_wechat": "微信",
+    "Public base address for Fuiou payment callbacks. Only enter the site root domain, for example https://api.example.com": "用于接收富友支付回调的公网基础地址，只填写站点根域名，例如 https://api.example.com",
+    "Payment expired or failed": "支付已过期或失败",
+    "Payment QR Code": "支付二维码",
+    "Recharge successful": "充值成功",
+    "Scan this QR code with your payment app to complete the payment.": "请使用支付应用扫描此二维码完成支付。"
   }
 }

@@ -38,6 +38,17 @@ export type AmountResponse = ApiResponse<string>
 export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
   url?: string
 }
+// sudoapi: Fuiou payment.
+export type FuiouPaymentResponse = ApiResponse<{
+  order_id: string
+  order_info: string
+  order_amt: string
+  order_date: string
+}>
+export type TopupStatusResponse = ApiResponse<{
+  order_id: string
+  order_status: TopupStatus
+}>
 export type StripePaymentResponse = ApiResponse<{ pay_link: string }>
 export type AffiliateCodeResponse = ApiResponse<string>
 export type AffiliateTransferResponse = ApiResponse
@@ -120,6 +131,8 @@ export interface WaffoPayMethod {
  * Topup configuration information
  */
 export interface TopupInfo {
+  // sudoapi: Fuiou payment.
+  enable_fuiou_topup: boolean
   /** Whether online topup is enabled */
   enable_online_topup: boolean
   /** Whether Stripe topup is enabled */
@@ -247,7 +260,7 @@ export interface UserWalletData {
 /**
  * Topup record status
  */
-export type TopupStatus = 'success' | 'pending' | 'expired'
+export type TopupStatus = 'success' | 'pending' | 'expired' | 'failed'
 
 /**
  * Topup billing record

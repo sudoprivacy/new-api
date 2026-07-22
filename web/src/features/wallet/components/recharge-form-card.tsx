@@ -131,6 +131,8 @@ export function RechargeFormCard({
   }
 
   const hasConfigurableTopup =
+    // sudoapi: Fuiou payment.
+    topupInfo?.enable_fuiou_topup ||
     topupInfo?.enable_online_topup ||
     topupInfo?.enable_stripe_topup ||
     enableWaffoTopup ||

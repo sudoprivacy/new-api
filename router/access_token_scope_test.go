@@ -55,6 +55,9 @@ var accessTokenExemptRoutes = []string{
 	"POST /api/user/auth/refresh",
 	"POST /api/user/auth/logout",
 
+	// sudoapi: Fuiou payment.
+	"POST /api/fuiou/callback",
+
 	// Payment callbacks.
 	"POST /api/stripe/webhook",
 	"POST /api/creem/webhook",

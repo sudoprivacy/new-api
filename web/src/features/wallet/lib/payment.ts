@@ -68,6 +68,14 @@ export function submitPaymentForm(
   document.body.removeChild(form)
 }
 
+// sudoapi: Fuiou payment.
+/**
+ * Check if payment method is Fuiou.
+ */
+export function isFuiouPayment(paymentType: string): boolean {
+  return paymentType === 'fuiou_alipay' || paymentType === 'fuiou_wechat'
+}
+
 /**
  * Check if payment method is Stripe
  */
