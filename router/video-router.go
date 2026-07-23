@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
+	"github.com/QuantumNous/new-api/volcengine"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,10 +53,17 @@ func SetVideoRouter(router *gin.Engine) {
 
 	// sudoapi: Official Seedance task adaptor.
 	seedanceGroup := router.Group("/volcengine")
-	seedanceGroup.Use(middleware.RouteTag("relay"))
-	seedanceGroup.Use(middleware.TokenAuth(), middleware.Distribute())
 	{
-		seedanceGroup.POST("/api/v3/contents/generations/tasks", controller.RelayTask)
-		seedanceGroup.GET("/api/v3/contents/generations/tasks/:task_id", controller.RelayTaskFetch)
+		seedanceGroup.POST("/", middleware.TokenAuth(), volcengine.HandleAction)
+		seedanceGroup.GET("/visual_validate_callback", volcengine.HandleVisualValidateCallback)
+	}
+	{
+		seedanceAPIV3Group := seedanceGroup.Group("/api/v3")
+		seedanceAPIV3Group.Use(middleware.RouteTag("relay"))
+		seedanceAPIV3Group.Use(middleware.TokenAuth(), middleware.Distribute())
+		{
+			seedanceAPIV3Group.POST("/contents/generations/tasks", controller.RelayTask)
+			seedanceAPIV3Group.GET("/contents/generations/tasks/:task_id", controller.RelayTaskFetch)
+		}
 	}
 }
