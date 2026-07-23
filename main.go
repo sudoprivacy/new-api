@@ -31,6 +31,7 @@ import (
 	"github.com/QuantumNous/new-api/service/authz"
 	_ "github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/new-api/volcengine"
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
@@ -330,6 +331,11 @@ func InitResources() error {
 	// Initialize SQL Database
 	err = model.InitLogDB()
 	if err != nil {
+		return err
+	}
+
+	// sudoapi: Volcengine ark asset.
+	if err = volcengine.Init(); err != nil {
 		return err
 	}
 
