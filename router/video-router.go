@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
+	"github.com/QuantumNous/new-api/volcengine"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,5 +30,12 @@ func SetVideoRouter(router *gin.Engine) {
 	{
 		videoV1Router.GET("/video/generations/:task_id", controller.RelayTaskFetch)
 		videoV1Router.POST("/videos/:video_id/remix", controller.RelayTask)
+	}
+
+	// sudoapi: Volcengine ark asset.
+	seedanceGroup := router.Group("/volcengine")
+	{
+		seedanceGroup.POST("/", middleware.TokenAuth(), volcengine.HandleAction)
+		seedanceGroup.GET("/visual_validate_callback", volcengine.HandleVisualValidateCallback)
 	}
 }
