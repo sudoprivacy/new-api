@@ -645,7 +645,14 @@ func StreamUserLogs(ctx context.Context, userId int, filter LogFilter, fn func(*
 		count++
 		log.Id = count
 		log.ChannelName = ""
-		log.Other = formatLogOtherJSON(log.Other, logOtherVisibilityUser)
+
+		// sudoapi: Logs api.
+		if other, err := common.Marshal(filterOtherMap(log.Other)); err != nil {
+			log.Other = "{}"
+		} else {
+			log.Other = string(other)
+		}
+
 		return fn(log)
 	})
 }
