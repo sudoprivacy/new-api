@@ -110,6 +110,9 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /api/user/fuiou/pay":     accessTokenScopeRule("wallet:write"),
 	"POST /api/user/fuiou/amount":  accessTokenScopeRule("wallet:read"),
 
+	// sudoapi: Logs api.
+	"GET /api/v1/logs/": accessTokenScopeRule("log:read"),
+
 	// router/api-router.go: /api/user (admin)
 	"GET /api/user/":                                   accessTokenScopeRule("user:read"),
 	"GET /api/user/topup":                              accessTokenScopeRule("billing:read"),
