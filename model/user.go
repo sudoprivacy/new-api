@@ -110,6 +110,9 @@ type User struct {
 	LastLoginAt      int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AuthVersion      int64                      `json:"-" gorm:"type:bigint;not null;default:1;column:auth_version"`
 	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+
+	// sudoapi: User utm source.
+	UtmSource string `json:"utm_source" gorm:"type:varchar(32);"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
