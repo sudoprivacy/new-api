@@ -298,6 +298,9 @@ func GeminiChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *
 		return usage, err
 	}
 
+	// sudoapi: Quota in chat completions usage for sudowork.
+	usage.Quota = service.CalculateTextQuota(c, info, usage)
+
 	response := helper.GenerateFinalUsageResponse(id, createAt, info.UpstreamModelName, *usage)
 	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo != nil && !info.ClaudeConvertInfo.Done {
 		response = helper.GenerateStopResponse(id, createAt, info.UpstreamModelName, finishReason)
@@ -361,6 +364,9 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 	fullTextResponse := responseGeminiChat2OpenAI(c, &geminiResponse)
 	fullTextResponse.Model = info.UpstreamModelName
 	usage := buildUsageFromGeminiResponse(c, info, &geminiResponse)
+
+	// sudoapi: Quota in chat completions usage for sudowork.
+	usage.Quota = service.CalculateTextQuota(c, info, &usage)
 
 	fullTextResponse.Usage = usage
 
