@@ -22,6 +22,24 @@ import (
 	"github.com/QuantumNous/new-api/model"
 )
 
+// AdminGetUserLogs GET /api/logs
+// 供 sudowork 使用
+func AdminGetUserLogs(ctx *gin.Context) {
+	var opt model.QueryUserLogOptions
+	if err := ctx.ShouldBindQuery(&opt); err != nil {
+		common.ApiError(ctx, ValidationError(err))
+		return
+	}
+
+	logs, count, err := model.QueryUserLogs(opt)
+	if err != nil {
+		common.ApiErrorMsg(ctx, fmt.Sprintf("query user logs failed, err: %v", err))
+		return
+	}
+
+	common.ApiSuccess(ctx, gin.H{"data": logs, "count": count})
+}
+
 // GetUserSelfLogs GET /api/log/self 替代原本的 controller.GetUserLogs
 // 对 others 中敏感信息进行过滤
 func GetUserSelfLogs(c *gin.Context) {

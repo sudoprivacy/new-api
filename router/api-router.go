@@ -153,6 +153,9 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.DELETE("/:id", controller.DeleteUser)
 				adminRoute.DELETE("/:id/reset_passkey", controller.AdminResetPasskey)
 
+				// sudoapi: API for sudowork
+				adminRoute.PUT("/quota", controller.UpdateUserQuota)
+
 				// Admin 2FA routes
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
 				adminRoute.DELETE("/:id/2fa", controller.AdminDisable2FA)
@@ -286,6 +289,9 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/self", middleware.UserAuth(), v1.GetUserSelfLogs)
 		logRoute.GET("/self/search", middleware.UserAuth(), middleware.SearchRateLimit(), controller.SearchUserLogs)
 
+		// sudoapi: API for sudowork
+		logRoute.GET("/query", middleware.AdminAuth(), v1.AdminGetUserLogs)
+
 		systemTaskRoute := apiRouter.Group("/system-task")
 		systemTaskRoute.Use(middleware.RootAuth())
 		{
@@ -390,6 +396,9 @@ func SetApiRouter(router *gin.Engine) {
 		}
 	}
 
+	// sudoapi: API for sudowork
+	apiRouter.GET("/specific_pricing", v1.GetSpecificPricing)
+	apiRouter.GET("/specific_image_pricing", v1.GetSpecificImagePricing)
 	// sudoapi: Logs api.
 	setupApiV1Router(apiRouter)
 }
