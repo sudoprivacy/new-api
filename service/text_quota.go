@@ -224,6 +224,12 @@ func composeTieredTextQuota(relayInfo *relaycommon.RelayInfo, summary textQuotaS
 	return total
 }
 
+// sudoapi: Quota in chat completions usage for sudowork.
+func CalculateTextQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage) int {
+	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
+	return summary.Quota
+}
+
 // calculateTextQuotaSummary expects a usage already remapped by
 // effectiveBillingUsage; PostTextConsumeQuota performs that remap once and shares
 // the result with tiered billing, affinity observation and logging.

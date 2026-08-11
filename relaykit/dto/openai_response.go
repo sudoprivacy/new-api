@@ -247,6 +247,9 @@ type Usage struct {
 
 	// OpenRouter Params
 	Cost any `json:"cost,omitempty"`
+
+	// sudoapi: Quota in chat completions usage for sudowork.
+	Quota int `json:"quota,omitempty"`
 }
 
 type OpenAIVideoResponse struct {

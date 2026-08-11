@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/sjson"
 )
 
 func sendStreamData(c *gin.Context, info *relaycommon.RelayInfo, data string, forceFormat bool, thinkToContent bool) error {
@@ -174,6 +175,14 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 		}
 	}
 
+	// sudoapi: Quota in chat completions usage for sudowork.
+	if containStreamUsage {
+		usage.Quota = service.CalculateTextQuota(c, info, usage)
+		if rst, err := sjson.Set(lastStreamData, "usage.quota", usage.Quota); err == nil {
+			lastStreamData = rst
+		}
+	}
+
 	if info.RelayFormat == types.RelayFormatOpenAI {
 		if shouldSendLastResp {
 			_ = sendStreamData(c, info, lastStreamData, info.ChannelSetting.ForceFormat, info.ChannelSetting.ThinkingToContent)
@@ -183,6 +192,9 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	if !containStreamUsage {
 		usage = service.ResponseText2Usage(c, responseTextBuilder.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
 		usage.CompletionTokens += toolCount * 7
+
+		// sudoapi: Quota in chat completions usage for sudowork.
+		usage.Quota = service.CalculateTextQuota(c, info, usage)
 	}
 
 	applyUsagePostProcessing(info, usage, common.StringToByteSlice(usageFrame))
@@ -321,6 +333,14 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 	}
 
 	applyUsagePostProcessing(info, &simpleResponse.Usage, responseBody)
+
+	// sudoapi: Quota in chat completions usage for sudowork.
+	simpleResponse.Usage.Quota = service.CalculateTextQuota(c, info, &simpleResponse.Usage)
+	if !usageModified && !forceFormat {
+		if rst, err := sjson.SetBytes(responseBody, "usage.quota", simpleResponse.Usage.Quota); err == nil {
+			responseBody = rst
+		}
+	}
 
 	switch info.RelayFormat {
 	case types.RelayFormatOpenAI:
