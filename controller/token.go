@@ -285,9 +285,19 @@ func AddToken(c *gin.Context) {
 			return
 		}
 	}
+
+	// sudoapi: API for sudowork
+	userID := c.GetInt("id")
+	if token.UserId != 0 && c.GetInt("role") >= common.RoleAdminUser {
+		userID = token.UserId
+		if token.Group == "" {
+			token.Group = "auto"
+		}
+	}
+
 	// 检查用户令牌数量是否已达上限
 	maxTokens := operation_setting.GetMaxUserTokens()
-	count, err := model.CountUserTokens(c.GetInt("id"))
+	count, err := model.CountUserTokens(userID)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -314,7 +324,7 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	cleanToken := model.Token{
-		UserId:             c.GetInt("id"),
+		UserId:             userID,
 		Name:               token.Name,
 		Key:                key,
 		CreatedTime:        common.GetTimestamp(),
@@ -337,6 +347,8 @@ func AddToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+		// sudoapi: API for sudowork
+		"data": cleanToken,
 	})
 }
 
