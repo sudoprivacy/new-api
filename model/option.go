@@ -415,7 +415,8 @@ func updateOptionMap(key string, value string) (err error) {
 	case "SMTPToken":
 		common.SMTPToken = value
 	case "ServerAddress":
-		system_setting.ServerAddress = value
+		// sudoapi: Multi-domain server address resolution.
+		system_setting.SetServerAddress(value)
 	case "WorkerUrl":
 		system_setting.WorkerUrl = value
 	case "WorkerValidKey":
