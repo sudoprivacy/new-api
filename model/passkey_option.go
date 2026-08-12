@@ -261,7 +261,7 @@ func applyPasskeyDomainOptions(values map[string]string) {
 		if value, ok := values[key]; ok {
 			common.OptionMap[key] = value
 			if key == "ServerAddress" {
-				system_setting.ServerAddress = value
+				system_setting.SetServerAddress(value)
 			} else {
 				handleConfigUpdate(key, value)
 			}

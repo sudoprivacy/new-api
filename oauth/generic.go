@@ -92,7 +92,8 @@ func (p *GenericOAuthProvider) ExchangeToken(ctx context.Context, code string, c
 		return nil, NewOAuthError(i18n.MsgOAuthInvalidCode, nil)
 	}
 
-	redirectUri := fmt.Sprintf("%s/oauth/%s", system_setting.ServerAddress, p.config.Slug)
+	// sudoapi: Multi-domain server address resolution.
+	redirectUri := fmt.Sprintf("%s/oauth/%s", system_setting.GetServerAddress(c), p.config.Slug)
 	values := url.Values{}
 	values.Set("grant_type", "authorization_code")
 	values.Set("code", code)
