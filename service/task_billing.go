@@ -43,6 +43,9 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	if info.PriceData.ModelRatio > 0 {
 		other["model_ratio"] = info.PriceData.ModelRatio
 	}
+	if info.PriceData.CompletionRatio > 0 {
+		other["completion_ratio"] = info.PriceData.CompletionRatio
+	}
 	other["group_ratio"] = info.PriceData.GroupRatioInfo.GroupRatio
 	if info.PriceData.GroupRatioInfo.HasSpecialRatio {
 		other["user_group_ratio"] = info.PriceData.GroupRatioInfo.GroupSpecialRatio
@@ -126,6 +129,10 @@ func taskBillingOther(task *model.Task) map[string]interface{} {
 		if bc.ModelRatio > 0 {
 			other["model_ratio"] = bc.ModelRatio
 		}
+		// sudoapi: Official Seedance task adaptor.
+		if bc.CompletionRatio > 0 {
+			other["completion_ratio"] = bc.CompletionRatio
+		}
 		other["group_ratio"] = bc.GroupRatio
 		if priceData := taskBillingContextPriceData(bc); priceData != nil {
 			for k, v := range priceData.OtherRatios() {
@@ -207,7 +214,7 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 // actualQuota 是任务完成后的实际应扣额度，与预扣额度 (task.Quota) 做差额结算。
 // reason 用于日志记录（例如 "token重算" 或 "adaptor调整"）。
 // clamps 可选：若计算 actualQuota 时发生额度饱和，将其记入日志 admin_info（仅管理员可见）。
-func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int, reason string, clamps ...*common.QuotaClamp) {
+func RecalculateTaskQuota(ctx context.Context, task *model.Task, taskResult *relaycommon.TaskInfo, actualQuota int, reason string, clamps ...*common.QuotaClamp) {
 	if actualQuota <= 0 {
 		return
 	}
@@ -260,6 +267,13 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	for _, clamp := range clamps {
 		attachQuotaSaturationToOther(other, clamp)
 	}
+
+	// sudoapi: Official Seedance task adaptor.
+	var completionTokens int
+	if taskResult != nil {
+		completionTokens = taskResult.CompletionTokens
+	}
+
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   logType,
@@ -271,14 +285,16 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		Group:     task.Group,
 		Other:     other,
 		NodeName:  task.PrivateData.NodeName,
+		// sudoapi: Official Seedance task adaptor.
+		CompletionTokens: completionTokens,
 	})
 }
 
 // RecalculateTaskQuotaByTokens 根据实际 token 消耗重新计费（异步差额结算）。
 // 当任务成功且返回了 totalTokens 时，根据模型倍率和分组倍率重新计算实际扣费额度，
 // 与预扣费的差额进行补扣或退还。支持钱包和订阅计费来源。
-func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTokens int) {
-	if totalTokens <= 0 {
+func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, taskResult *relaycommon.TaskInfo) {
+	if taskResult == nil || taskResult.TotalTokens <= 0 {
 		return
 	}
 
@@ -320,8 +336,8 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 	}
 
 	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier（饱和转换，防止溢出成负数）
-	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
+	actualQuota, clamp := common.QuotaFromFloatChecked(float64(taskResult.TotalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
 
-	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier)
-	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp)
+	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", taskResult.TotalTokens, modelRatio, finalGroupRatio, otherMultiplier)
+	RecalculateTaskQuota(ctx, task, taskResult, actualQuota, reason, clamp)
 }

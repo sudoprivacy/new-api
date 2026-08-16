@@ -414,6 +414,10 @@ type RecordTaskBillingLogParams struct {
 	Group     string
 	Other     map[string]interface{}
 	NodeName  string // 任务发起节点；为空时回退当前节点
+
+	// sudoapi: Official Seedance task adaptor.
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
 }
 
 func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
@@ -441,6 +445,9 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 		TokenId:   params.TokenId,
 		Group:     params.Group,
 		Other:     common.MapToJsonStr(params.Other),
+		// sudoapi: Official Seedance task adaptor.
+		PromptTokens:     params.PromptTokens,
+		CompletionTokens: params.CompletionTokens,
 	}
 	err := createLog(log)
 	if err != nil {

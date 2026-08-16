@@ -22,8 +22,8 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
 )
 
 type SeedanceTaskAdaptor struct {
@@ -31,64 +31,24 @@ type SeedanceTaskAdaptor struct {
 }
 
 func (a *SeedanceTaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
-	// 按 token 计费, 改写预扣费, 按补全算
-	if _, hasRatioSetting, _ := ratio_setting.GetModelRatio(info.OriginModelName); hasRatioSetting {
-		info.PriceData.Quota *= int(ratio_setting.GetCompletionRatio(info.OriginModelName))
-		return nil
-	}
-
-	// 按次计费, 加其他倍率
-	req, err := a.taskRequest(c)
+	price := c.GetFloat64("task_price")
+	// 按量计费: 预估 Token 用量 = (输出宽 * 输出高 * 输出帧率 * 输出时长) / 1024
+	quota, err := common.QuotaFromFloatStrict(price / 2 * common.QuotaPerUnit * helper.HandleGroupRatio(c, info).GroupRatio)
 	if err != nil {
 		return nil
 	}
-	ratios := make(map[string]float64)
-	if req.Frames != nil {
-		ratios["seconds"] = float64(*req.Frames) / 24
-	} else if req.Duration != nil {
-		ratios["seconds"] = float64(*req.Duration)
-	} else {
-		ratios["seconds"] = 5
-	}
-	return ratios
+	// 基础价格 $2/M tok, 因为 QuotaPerUnit=500000
+	info.PriceData.CompletionRatio = price / 2 / info.PriceData.ModelRatio
+	// 按输出改写预扣费
+	info.PriceData.Quota = quota
+	return nil
 }
 
-// AdjustBillingOnComplete returns 0 (keep pre-charged amount).
+// AdjustBillingOnComplete 任务结束后调整计费
 func (*SeedanceTaskAdaptor) AdjustBillingOnComplete(task *model.Task, info *relaycommon.TaskInfo) int {
-	modelName := TaskModelName(task)
-	// 获取模型价格和倍率
-	modelRatio, hasRatioSetting, _ := ratio_setting.GetModelRatio(modelName)
-	// 只有配置了倍率(非固定价格)时才按 token 重新计费
-	if !hasRatioSetting || modelRatio <= 0 {
-		return 0
-	}
-
-	// 获取用户和组的倍率信息
-	group := task.Group
-	if group == "" {
-		user, err := model.GetUserById(task.UserId, false)
-		if err == nil {
-			group = user.Group
-		}
-	}
-	if group == "" {
-		return 0
-	}
-
-	groupRatio := ratio_setting.GetGroupRatio(group)
-	userGroupRatio, hasUserGroupRatio := ratio_setting.GetGroupGroupRatio(group, group)
-
-	var finalGroupRatio float64
-	if hasUserGroupRatio {
-		finalGroupRatio = userGroupRatio
-	} else {
-		finalGroupRatio = groupRatio
-	}
-
 	inputTokens := float64(info.TotalTokens - info.CompletionTokens)
 	outputTokens := float64(info.CompletionTokens)
-
-	quota := (inputTokens + outputTokens*ratio_setting.GetCompletionRatio(modelName)) * modelRatio * finalGroupRatio
+	quota := (inputTokens + outputTokens*task.PrivateData.BillingContext.CompletionRatio) * task.PrivateData.BillingContext.ModelRatio * task.PrivateData.BillingContext.GroupRatio
 	return int(quota)
 }
 
@@ -106,9 +66,17 @@ func (a *SeedanceTaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *
 	if len(req.Content) == 0 {
 		return service.TaskErrorWrapperLocal(errors.New("content is required"), "invalid_request", http.StatusBadRequest)
 	}
+	if req.Resolution == "" {
+		req.Resolution = "720p"
+	}
+	price, err := getSeedancePrice(info.OriginModelName, &req)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_price", http.StatusBadRequest)
+	}
 
 	info.Action = constant.TaskActionGenerate
 	c.Set("task_request", req)
+	c.Set("task_price", price)
 	return nil
 }
 
@@ -138,8 +106,8 @@ func (a *SeedanceTaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon
 	if err != nil {
 		return nil, err
 	}
-	if info.UpstreamModelName != "" {
-		req.Model = info.UpstreamModelName
+	if upstreamModelName := info.GetUpstreamModelName(); upstreamModelName != "" {
+		req.Model = upstreamModelName
 	}
 	data, err := common.Marshal(req)
 	if err != nil {
