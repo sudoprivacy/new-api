@@ -302,6 +302,8 @@ export interface TaskLog {
   other?: string
   created_at?: number
   updated_at?: number
+  // sudoapi: Preview video using result_url.
+  result_url?: string
 }
 
 // ============================================================================
