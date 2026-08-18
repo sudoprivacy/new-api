@@ -293,7 +293,7 @@ func GetAndValidateClaudeRequest(c *gin.Context) (textRequest *dto.ClaudeRequest
 		return nil, err
 	}
 	if textRequest.Messages == nil || len(textRequest.Messages) == 0 {
-		return nil, errors.New("field messages is required")
+		return nil, ErrMessagesRequired
 	}
 	if textRequest.Model == "" {
 		return nil, errors.New("field model is required")
@@ -352,7 +352,7 @@ func GetAndValidateTextRequest(c *gin.Context, relayMode int) (*dto.GeneralOpenA
 		// For FIM (Fill-in-the-middle) requests with prefix/suffix, messages is optional
 		// It will be filled by provider-specific adaptors if needed (e.g., SiliconFlow)。Or it is allowed by model vendor(s) (e.g., DeepSeek)
 		if len(textRequest.Messages) == 0 && textRequest.Prefix == nil && textRequest.Suffix == nil {
-			return nil, errors.New("field messages is required")
+			return nil, ErrMessagesRequired
 		}
 	case relayconstant.RelayModeEmbeddings:
 	case relayconstant.RelayModeModerations:
