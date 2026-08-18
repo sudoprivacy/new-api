@@ -241,6 +241,9 @@ export interface LogOtherData {
   subscription_consumed?: number
   subscription_remain?: number
   subscription_total?: number
+  // sudoapi: Task support tiered billing.
+  pre_consumed_quota?: number
+  actual_quota?: number
 }
 
 /**

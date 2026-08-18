@@ -8,6 +8,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	commonRelay "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 )
@@ -120,6 +121,8 @@ type TaskBillingContext struct {
 	OtherRatios     map[string]float64 `json:"other_ratios,omitempty"`      // 附加倍率（时长、分辨率等）
 	OriginModelName string             `json:"origin_model_name,omitempty"` // 模型名称，必须为OriginModelName
 	PerCallBilling  bool               `json:"per_call_billing,omitempty"`  // 按次计费：跳过轮询阶段的差额结算
+	// sudoapi: Task support tiered billing.
+	TieredBillingSnapshot *billingexpr.BillingSnapshot `json:"tiered_billing_snapshot"`
 }
 
 // GetUpstreamTaskID 获取上游真实 task ID（用于与 provider 通信）

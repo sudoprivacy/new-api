@@ -414,6 +414,8 @@ type RecordTaskBillingLogParams struct {
 	Group     string
 	Other     map[string]interface{}
 	NodeName  string // 任务发起节点；为空时回退当前节点
+	// sudoapi: Task support tiered billing.
+	CompletionTokens int
 }
 
 func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
@@ -441,6 +443,8 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 		TokenId:   params.TokenId,
 		Group:     params.Group,
 		Other:     common.MapToJsonStr(params.Other),
+		// sudoapi: Task support tiered billing.
+		CompletionTokens: params.CompletionTokens,
 	}
 	err := createLog(log)
 	if err != nil {

@@ -646,6 +646,19 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 		logger.LogInfo(ctx, fmt.Sprintf("任务 %s 按次计费，跳过差额结算", task.TaskID))
 		return
 	}
+
+	// sudoapi: Task support tiered billing.
+	if adaptorExt, ok := adaptor.(TaskPollingAdaptorExt); ok {
+		adjustResult, ok := adaptorExt.AdjustBillingOnCompleteExt(task, taskResult)
+		if ok {
+			if adjustResult.Reason == "" {
+				adjustResult.Reason = "adaptor计费调整"
+			}
+			RecalculateTaskQuotaByResult(ctx, task, taskResult, adjustResult)
+			return
+		}
+	}
+
 	// 1. 优先让 adaptor 决定最终额度
 	if actualQuota := adaptor.AdjustBillingOnComplete(task, taskResult); actualQuota > 0 {
 		RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整")
@@ -658,3 +671,15 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	}
 	// 3. 无调整，保持预扣额度
 }
+
+// sudoapi: Task support tiered billing.
+type (
+	AdjustResult struct {
+		Quota      int
+		QuotaClamp *common.QuotaClamp
+		Reason     string
+	}
+	TaskPollingAdaptorExt interface {
+		AdjustBillingOnCompleteExt(task *model.Task, taskResult *relaycommon.TaskInfo) (AdjustResult, bool)
+	}
+)

@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
+
+	"github.com/samber/lo"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -51,6 +54,18 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 		other["is_model_mapped"] = true
 		other["upstream_model_name"] = info.UpstreamModelName
 	}
+
+	// sudoapi: Task support tiered billing.
+	other["task_id"] = info.PublicTaskID
+	var promptTokens, completionTokens int
+	if snap := info.TieredBillingSnapshot; snap != nil {
+		promptTokens = snap.EstimatedPromptTokens
+		completionTokens = snap.EstimatedCompletionTokens
+		other["billing_mode"] = snap.BillingMode
+		other["expr_b64"] = base64.StdEncoding.EncodeToString([]byte(snap.ExprString))
+		other["matched_tier"] = snap.EstimatedTier
+	}
+
 	attachQuotaSaturation(c, info, other)
 	model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{
 		ChannelId: info.ChannelId,
@@ -61,6 +76,9 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 		TokenId:   info.TokenId,
 		Group:     info.UsingGroup,
 		Other:     other,
+		// sudoapi: Task support tiered billing.
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
 	})
 	model.UpdateUserUsedQuotaAndRequestCount(info.UserId, info.PriceData.Quota)
 	model.UpdateChannelUsedQuota(info.ChannelId, info.PriceData.Quota)
@@ -208,6 +226,23 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 // reason 用于日志记录（例如 "token重算" 或 "adaptor调整"）。
 // clamps 可选：若计算 actualQuota 时发生额度饱和，将其记入日志 admin_info（仅管理员可见）。
 func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int, reason string, clamps ...*common.QuotaClamp) {
+	RecalculateTaskQuotaByResult(ctx, task, nil, AdjustResult{
+		Quota: actualQuota,
+		// 对于 clamps, 重复的 attachQuotaSaturationToOther 只对最后一个生效
+		QuotaClamp: lo.LastOr(clamps, nil),
+		Reason:     reason,
+	})
+}
+
+// sudoapi: Task support tiered billing.
+func RecalculateTaskQuotaByResult(ctx context.Context, task *model.Task, taskResult *relaycommon.TaskInfo, adjustResult AdjustResult) {
+	actualQuota := adjustResult.Quota
+	reason := adjustResult.Reason
+	var completionTokens int
+	if taskResult != nil {
+		completionTokens = taskResult.CompletionTokens
+	}
+
 	if actualQuota <= 0 {
 		return
 	}
@@ -257,9 +292,17 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	other["task_id"] = task.TaskID
 	other["pre_consumed_quota"] = preConsumedQuota
 	other["actual_quota"] = actualQuota
-	for _, clamp := range clamps {
-		attachQuotaSaturationToOther(other, clamp)
+
+	// sudoapi: Task support tiered billing.
+	if task.PrivateData.BillingContext != nil {
+		if snap := task.PrivateData.BillingContext.TieredBillingSnapshot; snap != nil {
+			other["billing_mode"] = snap.BillingMode
+			other["expr_b64"] = base64.StdEncoding.EncodeToString([]byte(snap.ExprString))
+			other["matched_tier"] = snap.EstimatedTier
+		}
 	}
+
+	attachQuotaSaturationToOther(other, adjustResult.QuotaClamp)
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   logType,
@@ -271,6 +314,8 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		Group:     task.Group,
 		Other:     other,
 		NodeName:  task.PrivateData.NodeName,
+		// sudoapi: Task support tiered billing.
+		CompletionTokens: completionTokens,
 	})
 }
 

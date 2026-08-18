@@ -232,6 +232,11 @@ function BillingBreakdown(props: {
   const fmtPrice = (usd: number) => formatBillingCurrencyFromUSD(usd, priceOpts)
   const baseInputUSD = other.model_ratio != null ? other.model_ratio * 2.0 : 0
 
+  // sudoapi: Task support tiered billing.
+  if (other.task_id) {
+    rows.push({ label: t('Task ID'), value: other.task_id })
+  }
+
   if (isTieredExpr) {
     rows.push({
       label: t('Billing Mode'),
@@ -389,7 +394,7 @@ function BillingBreakdown(props: {
 
   rows.push({
     label: t('Total Cost'),
-    value: formatLogQuota(log.quota),
+    value: formatLogQuota(other.actual_quota ?? log.quota),
   })
 
   if (rows.length === 0) return null
@@ -860,6 +865,35 @@ export function DetailsDialog(props: DetailsDialogProps) {
             {other.task_id && (
               <DetailRow label={t('Task ID')} value={other.task_id} mono />
             )}
+            {/*sudoapi: Task support tiered billing.*/}
+            {other.pre_consumed_quota && (
+              <DetailRow label={t('Pre-consumed')} value={formatLogQuota(other.pre_consumed_quota)} />
+            )}
+            {other.actual_quota && (
+              <DetailRow label={t('Actual Amount')} value={formatLogQuota(other.actual_quota)} />
+            )}
+            {props.log.quota && (
+              <DetailRow label={t('Refund')} value={formatLogQuota(props.log.quota)} />
+            )}
+            {other.reason && (
+              <DetailRow label={t('Reason')} value={other.reason} />
+            )}
+          </DetailSection>
+        )}
+
+        {/*sudoapi: Task support tiered billing.*/}
+        {isConsume && other && (other.task_id || other.reason) && (
+          <DetailSection label={t('Additional Charge Details')}>
+            {other.task_id && (
+              <DetailRow label={t('Task ID')} value={other.task_id} mono />
+            )}
+            {other.pre_consumed_quota && (
+              <DetailRow label={t('Pre-charged Amount')} value={formatLogQuota(other.pre_consumed_quota)} />
+            )}
+            {other.actual_quota && (
+              <DetailRow label={t('Amount Payable')} value={formatLogQuota(other.actual_quota)} />
+            )}
+            <DetailRow label={t('Additional Charge')} value={formatLogQuota(props.log.quota)}/>
             {other.reason && (
               <DetailRow label={t('Reason')} value={other.reason} />
             )}
@@ -1071,6 +1105,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
             other={other}
             isAdmin={props.isAdmin}
           />
+        )}
+        {/*sudoapi: Task support tiered billing.*/}
+        {isRefund && other && (other.task_id || other.reason) && (other.actual_quota) && (
+          <BillingBreakdown
+            log={props.log} other={other} isAdmin={props.isAdmin} />
         )}
 
         {/* Tiered pricing breakdown (when billing_mode is tiered_expr) */}
