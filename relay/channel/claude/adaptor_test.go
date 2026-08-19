@@ -68,8 +68,9 @@ func TestConvertClaudeRequestPreservesNativeClaudeCodeThinking(t *testing.T) {
 	assert.Equal(t, "enabled", converted.Thinking.Type)
 	require.NotNil(t, converted.Thinking.BudgetTokens)
 	assert.Equal(t, budget, *converted.Thinking.BudgetTokens)
-	assert.Equal(t, temperature, *converted.Temperature)
-	assert.Equal(t, topP, *converted.TopP)
+	// sudoapi: Remove unsupported parameters for Claude Opus models.
+	assert.Nil(t, converted.Temperature)
+	assert.Nil(t, converted.TopP)
 	assert.JSONEq(t, `{"effort":"high"}`, string(converted.OutputConfig))
 	assert.Empty(t, info.ConversionDiagnostics())
 }
@@ -251,4 +252,30 @@ func TestConvertGeminiRequestThinkingConfigUsesReasoningIntent(t *testing.T) {
 func TestConvertGeminiRequestNilRequest(t *testing.T) {
 	_, err := (&Adaptor{}).ConvertGeminiRequest(nil, geminiToClaudeInfo(), nil)
 	require.Error(t, err)
+}
+
+// sudoapi: Remove unsupported parameters for Claude Opus models.
+func TestOpusVersion(t *testing.T) {
+	testcases := []struct {
+		model   string
+		version float64
+	}{
+		{"claude-opus-4-5-20251101", 4.5},
+		{"claude-opus-4-6", 4.6},
+		{"claude-opus-4-7", 4.7},
+		{"claude-opus-4-8", 4.8},
+		{"claude-opus-5", 5},
+		{"claude-opus-5-5", 5.5},
+
+		{"claude-opus-5-53", 5.53},
+		{"claude-opus-5-20251101", 5},
+		{"claude-opus-45-1", 45.1},
+
+		{"claude-fable-5", 0},
+	}
+	for _, testcase := range testcases {
+		t.Run(testcase.model, func(t *testing.T) {
+			assert.Equal(t, testcase.version, opusVersion(testcase.model))
+		})
+	}
 }

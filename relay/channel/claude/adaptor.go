@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
@@ -49,6 +51,15 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	if info.UpstreamModelName == "" {
 		info.UpstreamModelName = request.Model
 	}
+
+	// sudoapi: Remove unsupported parameters for Claude Opus models.
+	// see https://platform.claude.com/docs/zh-CN/about-claude/model-deprecations#api-parameter-deprecations
+	if opusVersion(request.Model) >= 4.7 {
+		request.Temperature = nil
+		request.TopP = nil
+		request.TopK = nil
+	}
+
 	return request, nil
 }
 
@@ -169,4 +180,22 @@ func (a *Adaptor) GetModelList() []string {
 
 func (a *Adaptor) GetChannelName() string {
 	return ChannelName
+}
+
+// sudoapi: Remove unsupported parameters for Claude Opus models.
+func opusVersion(model string) float64 {
+	const prefix = "claude-opus-"
+	if !strings.HasPrefix(model, prefix) {
+		return 0
+	}
+	parts := strings.Split(model[len(prefix):], "-")
+	versionStr := parts[0]
+	if len(parts) >= 2 && len(parts[1]) > 0 && len(parts[1]) <= 2 {
+		versionStr += "." + parts[1]
+	}
+	version, err := strconv.ParseFloat(versionStr, 64)
+	if err != nil {
+		return 0
+	}
+	return version
 }
