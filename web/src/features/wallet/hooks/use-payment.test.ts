@@ -25,6 +25,11 @@ describe('payment amount routing', () => {
   test('uses the dedicated Waffo amount calculator', async () => {
     const calls: string[] = []
     const amount = await requestPaymentAmount(120, PAYMENT_TYPES.WAFFO, {
+      // sudoapi: Fuiou payment.
+      fuiou: async () => {
+        calls.push('fuiou')
+        return { success: true, data: '5' }
+      },
       regular: async () => {
         calls.push('regular')
         return { success: true, data: '1' }
