@@ -19,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
@@ -167,7 +168,24 @@ func buildOpenAIModel(modelName string, ownerByModel map[string]string) dto.Open
 		oaiModel.OwnedBy = owner
 	}
 	oaiModel.SupportedEndpointTypes = model.GetModelSupportEndpointTypes(modelName)
+	enrichModelMetadata(&oaiModel)
 	return oaiModel
+}
+
+// enrichModelMetadata fills in context window, max output tokens and the
+// per-model image-capability fields from the metadata registry. A model the
+// registry has never heard of is left untouched so its fields stay off the wire
+// and the consumer applies its own default, rather than being told a wrong value.
+func enrichModelMetadata(m *dto.OpenAIModels) {
+	meta := model_setting.GetModelMetadata(m.Id)
+	if meta == nil {
+		return
+	}
+	m.ContextWindow = meta.ContextWindow
+	m.MaxOutputTokens = meta.MaxOutputTokens
+	m.VisionSupported = meta.VisionSupported
+	m.ImageMaxBytes = meta.ImageMaxBytes
+	m.ImageMaxDimension = meta.ImageMaxDimension
 }
 
 type modelListGroups struct {
