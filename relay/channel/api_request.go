@@ -488,6 +488,10 @@ func keepUpstreamRedirectResponse(_ *http.Request, _ []*http.Request) error {
 }
 
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	// Every upstream request funnels through here, so this is the one place that
+	// has to carry the correlation id that lets a channel's own billing be lined
+	// up with ours. See service.StampCorrelationId.
+	service.StampCorrelationId(c, req)
 	client, err := service.GetHttpClientWithProxySettings(info.ChannelSetting.Proxy, info.ChannelSetting)
 	if err != nil {
 		return nil, fmt.Errorf("new proxy http client failed: %w", err)
