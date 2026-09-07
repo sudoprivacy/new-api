@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -242,8 +243,14 @@ func OpenAIChatRequestToGeminiGenerateContent(c context.Context, textRequest dto
 	var systemContent []string
 
 	// sudoapi: bypass gemini thoughtSignature when channel changes.
-	ginCtx, ok := c.(interface{ GetBool(key string) bool })
-	thoughtSignatureUseBypass := ok && ginCtx.GetBool("retry_channel_changed")
+	// The assertion also succeeds for a typed-nil context — the dynamic type
+	// satisfies the method set even when the pointer behind it is nil — so calling
+	// through it without checking the value dereferences nil. Converters are
+	// expected to run without a request context.
+	thoughtSignatureUseBypass := false
+	if ginCtx, ok := c.(interface{ GetBool(key string) bool }); ok && !isNilContext(ginCtx) {
+		thoughtSignatureUseBypass = ginCtx.GetBool("retry_channel_changed")
+	}
 
 	for _, message := range textRequest.Messages {
 		if message.Role == "system" || message.Role == "developer" {
@@ -425,4 +432,20 @@ func OpenAIChatRequestToGeminiGenerateContent(c context.Context, textRequest dto
 	}
 
 	return &geminiRequest, nil
+}
+
+// isNilContext reports whether an interface holds a nil pointer. A typed-nil
+// value is not equal to nil as an interface, so this is what stands between a
+// successful type assertion and a nil dereference.
+func isNilContext(v any) bool {
+	if v == nil {
+		return true
+	}
+	value := reflect.ValueOf(v)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
