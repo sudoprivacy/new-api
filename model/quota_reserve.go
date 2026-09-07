@@ -17,6 +17,14 @@ const (
 	cacheQuotaMiss
 )
 
+// A cached balance below zero is not evidence that the user is out of quota, it
+// is evidence that the cached counter drifted below the ledger: settlement and
+// subscription charges apply their delta without a floor, so an overshoot leaves
+// the hash negative while the database still holds the money. Reporting that as
+// "insufficient" turns it into a 403 for a funded user that survives until the
+// key expires, so it is reported as a miss instead — the caller rehydrates from
+// the database, and a user who really is out of quota is turned away there, on
+// the ledger's authority.
 const userQuotaReserveScript = `
 if tonumber(redis.call('HGET', KEYS[1], 'Id') or '0') ~= tonumber(ARGV[2])
   or tonumber(redis.call('HGET', KEYS[1], 'CacheSchema') or '0') ~= tonumber(ARGV[3])
@@ -24,7 +32,10 @@ if tonumber(redis.call('HGET', KEYS[1], 'Id') or '0') ~= tonumber(ARGV[2])
   return -1
 end
 local quota = tonumber(redis.call('HGET', KEYS[1], 'Quota'))
-if quota == nil or quota < tonumber(ARGV[1]) then
+if quota == nil or quota < 0 then
+  return -1
+end
+if quota < tonumber(ARGV[1]) then
   return 0
 end
 redis.call('HINCRBY', KEYS[1], 'Quota', -tonumber(ARGV[1]))
