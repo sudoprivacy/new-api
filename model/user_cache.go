@@ -127,13 +127,6 @@ func cacheGetUserBase(userId int) (*UserBase, error) {
 	if userCache.Id != userId || userCache.CacheSchema != userCacheSchemaVersion || userCache.AuthVersion <= 0 {
 		return nil, fmt.Errorf("user cache schema is stale")
 	}
-	// Quota below zero means the cached counter drifted below the ledger (see
-	// userQuotaReserveScript). Serving it would report a funded user as broke, and
-	// would also stop the reserve path from ever rehydrating, since hydration goes
-	// through here.
-	if userCache.Quota < 0 {
-		return nil, fmt.Errorf("user cache quota underflowed to %d", userCache.Quota)
-	}
 	floor, err := getUserAuthVersionFloor(userId)
 	if err != nil {
 		return nil, err
