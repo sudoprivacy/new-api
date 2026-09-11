@@ -1,8 +1,11 @@
+// sudoapi: Per-model capability metadata registry.
+
 package model_setting
 
 import (
-	"encoding/json"
 	"sync"
+
+	"github.com/QuantumNous/new-api/common"
 )
 
 // ModelMetadata stores per-model metadata like context window size, max output
@@ -270,7 +273,7 @@ func GetAllModelMetadata() map[string]ModelMetadata {
 // mention keep the values this build ships.
 func UpdateModelMetadataByJSONString(jsonStr string) error {
 	var overrides map[string]ModelMetadata
-	if err := json.Unmarshal([]byte(jsonStr), &overrides); err != nil {
+	if err := common.Unmarshal([]byte(jsonStr), &overrides); err != nil {
 		return err
 	}
 	modelMetadataMutex.Lock()
@@ -283,6 +286,6 @@ func UpdateModelMetadataByJSONString(jsonStr string) error {
 func ModelMetadata2JSONString() string {
 	modelMetadataMutex.RLock()
 	defer modelMetadataMutex.RUnlock()
-	data, _ := json.Marshal(modelMetadataMap)
+	data, _ := common.Marshal(modelMetadataMap)
 	return string(data)
 }

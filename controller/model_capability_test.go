@@ -1,9 +1,11 @@
+// sudoapi: Per-model capability metadata registry.
+
 package controller
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,10 +29,10 @@ func enrichAndDecode(t *testing.T, modelName string) apiModelEntry {
 	m := dto.OpenAIModels{Id: modelName, Object: "model", OwnedBy: "test"}
 	enrichModelMetadata(&m)
 
-	encoded, err := json.Marshal(m)
+	encoded, err := common.Marshal(m)
 	require.NoError(t, err)
 	var entry apiModelEntry
-	require.NoError(t, json.Unmarshal(encoded, &entry))
+	require.NoError(t, common.Unmarshal(encoded, &entry))
 	return entry
 }
 

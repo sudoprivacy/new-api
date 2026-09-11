@@ -1,3 +1,5 @@
+// sudoapi: Correlation id joining this gateway's billing to a channel's.
+
 package service
 
 import (

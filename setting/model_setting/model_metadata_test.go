@@ -1,3 +1,5 @@
+// sudoapi: Per-model capability metadata registry.
+
 package model_setting
 
 import (
