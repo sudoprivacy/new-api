@@ -1,3 +1,5 @@
+// sudoapi: Quota cache authority invariants.
+
 package model
 
 import (
