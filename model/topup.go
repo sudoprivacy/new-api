@@ -765,6 +765,13 @@ func RechargeCommon(orderID, logOtherInfo string) error {
 		return err
 	}
 
+	// The credit landed in the ledger but the cached balance is still the old
+	// one, and a reservation that finds the cache short is refused outright —
+	// no database round-trip, by design (see TryReserveUserQuota). Without this
+	// the user stays locked out until the key expires, and topping up again
+	// does not help, because every other top-up path syncs and this one did not.
+	syncCreditUserQuotaCache(topUp.UserId, quota, "fuiou recharge")
+
 	username, _ := GetUsernameById(topUp.UserId, false)
 	err = LOG_DB.Create(&Log{
 		UserId:    topUp.UserId,

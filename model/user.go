@@ -581,7 +581,16 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 	}
 
 	// 提交事务
-	return tx.Commit().Error
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	// Same reason as the top-up paths: the wallet grew in the ledger, and a
+	// reservation that finds the cached balance short is refused without
+	// consulting the ledger. Leaving the cache behind here means the quota the
+	// user just moved in is unspendable until the key expires.
+	syncCreditUserQuotaCache(user.Id, quota, "aff quota transfer")
+	return nil
 }
 
 func (user *User) prepareForInsert(tx *gorm.DB) error {
