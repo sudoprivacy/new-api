@@ -149,3 +149,39 @@ func GetLogsSelfStat(c *gin.Context) {
 	})
 	return
 }
+
+// GetChannelCacheHealth reports prompt-cache reuse per channel.
+//
+// Answers a question the quota views cannot: not "who spent the money" but
+// "why did the same work cost this much". Anthropic bills a cache read at 0.1x
+// and a write at 1.25x, so an upstream that loses half its reuse roughly
+// doubles the input cost of identical traffic while every request still
+// returns 200 — there is no error to alert on, only a larger bill.
+//
+// `by_hour=true` returns a time series instead of per-channel totals. Prefer it
+// when diagnosing: a total averages a fixed problem together with a live one
+// and can point at the wrong channel entirely.
+func GetChannelCacheHealth(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	channelId, _ := strconv.Atoi(c.Query("channel"))
+	modelName := c.Query("model_name")
+	byHour := c.Query("by_hour") == "true"
+
+	buckets, truncated, err := model.GetChannelCacheHealth(startTimestamp, endTimestamp, channelId, modelName, byHour)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"buckets": buckets,
+			// True when the row cap was reached: the numbers below it are a
+			// partial sample, so a reuse figure taken from a truncated report
+			// understates nothing consistently and must not be quoted.
+			"truncated": truncated,
+		},
+	})
+}
