@@ -138,6 +138,17 @@ func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
 }
 
 func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
+	// Gemini Live WebSocket: wss endpoint with API key as query param
+	if info.RelayMode == constant.RelayModeRealtime {
+		baseUrl := info.ChannelBaseUrl
+		if strings.HasPrefix(baseUrl, "https://") {
+			baseUrl = "wss://" + strings.TrimPrefix(baseUrl, "https://")
+		} else if strings.HasPrefix(baseUrl, "http://") {
+			baseUrl = "ws://" + strings.TrimPrefix(baseUrl, "http://")
+		}
+		return fmt.Sprintf("%s/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=%s",
+			baseUrl, info.ApiKey), nil
+	}
 
 	if model_setting.GetGeminiSettings().ThinkingAdapterEnabled &&
 		!model_setting.ShouldPreserveThinkingSuffix(info.OriginModelName) {
@@ -181,6 +192,10 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {
+	// For WebSocket realtime, auth is via query param in URL, no header needed
+	if info.RelayMode == constant.RelayModeRealtime {
+		return nil
+	}
 	channel.SetupApiRequestHeader(info, c, req)
 	req.Set("x-goog-api-key", info.ApiKey)
 	return nil
@@ -258,10 +273,18 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
+	if info.RelayMode == constant.RelayModeRealtime {
+		return channel.DoWssRequest(a, c, info, requestBody)
+	}
 	return channel.DoApiRequest(a, c, info, requestBody)
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {
+	if info.RelayMode == constant.RelayModeRealtime {
+		err, usage = GeminiLiveRealtimeHandler(c, info)
+		return
+	}
+
 	if info.RelayMode == constant.RelayModeResponses {
 		if info.IsStream {
 			return GeminiResponsesStreamHandler(c, info, resp)

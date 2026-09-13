@@ -1,6 +1,7 @@
 package vertex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -168,6 +169,30 @@ func (a *Adaptor) getRequestUrl(info *relaycommon.RelayInfo, modelName, suffix s
 }
 
 func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
+	// Vertex AI Gemini Live WebSocket endpoint
+	if info.RelayMode == constant.RelayModeRealtime {
+		region := GetModelRegion(info.ApiVersion, info.OriginModelName)
+		adc := &Credentials{}
+		if err := common.Unmarshal([]byte(info.ApiKey), adc); err != nil {
+			return "", fmt.Errorf("failed to decode credentials file: %w", err)
+		}
+		a.AccountCredentials = *adc
+		baseUrl := info.ChannelBaseUrl
+		if baseUrl == "" {
+			if region == "global" {
+				baseUrl = "https://aiplatform.googleapis.com"
+			} else {
+				baseUrl = fmt.Sprintf("https://%s-aiplatform.googleapis.com", region)
+			}
+		}
+		if strings.HasPrefix(baseUrl, "https://") {
+			baseUrl = "wss://" + strings.TrimPrefix(baseUrl, "https://")
+		} else if strings.HasPrefix(baseUrl, "http://") {
+			baseUrl = "ws://" + strings.TrimPrefix(baseUrl, "http://")
+		}
+		return fmt.Sprintf("%s/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent", baseUrl), nil
+	}
+
 	suffix := ""
 	if a.RequestMode == RequestModeGemini {
 		if model_setting.GetGeminiSettings().ThinkingAdapterEnabled &&
@@ -333,10 +358,22 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
+	if info.RelayMode == constant.RelayModeRealtime {
+		return channel.DoWssRequest(a, c, info, requestBody)
+	}
 	return channel.DoApiRequest(a, c, info, requestBody)
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {
+	if info.RelayMode == constant.RelayModeRealtime {
+		// Vertex AI requires model as full resource path in setup message
+		region := GetModelRegion(info.ApiVersion, info.OriginModelName)
+		projectID := a.AccountCredentials.ProjectID
+		rewriter := vertexModelRewriter(projectID, region)
+		err, usage = gemini.GeminiLiveRealtimeHandler(c, info, rewriter)
+		return
+	}
+
 	claudeAdaptor := claude.Adaptor{}
 	if info.IsStream {
 		switch a.RequestMode {
@@ -369,6 +406,46 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 		}
 	}
 	return
+}
+
+// vertexModelRewriter returns a ClientMessageRewriter that converts
+// the model field in setup messages from "models/{model}" to the Vertex AI
+// resource path "projects/{project}/locations/{region}/publishers/google/models/{model}".
+func vertexModelRewriter(projectID, region string) gemini.ClientMessageRewriter {
+	return func(message []byte) []byte {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(message, &raw); err != nil {
+			return message
+		}
+		setupRaw, ok := raw["setup"]
+		if !ok {
+			return message // not a setup message
+		}
+		var setup map[string]json.RawMessage
+		if err := json.Unmarshal(setupRaw, &setup); err != nil {
+			return message
+		}
+		modelRaw, ok := setup["model"]
+		if !ok {
+			return message
+		}
+		var model string
+		if err := json.Unmarshal(modelRaw, &model); err != nil {
+			return message
+		}
+		// Strip "models/" prefix if present
+		modelName := strings.TrimPrefix(model, "models/")
+		// Build Vertex AI resource path
+		vertexModel := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s",
+			projectID, region, modelName)
+		setup["model"], _ = json.Marshal(vertexModel)
+		raw["setup"], _ = json.Marshal(setup)
+		rewritten, err := json.Marshal(raw)
+		if err != nil {
+			return message
+		}
+		return rewritten
+	}
 }
 
 func (a *Adaptor) GetModelList() []string {

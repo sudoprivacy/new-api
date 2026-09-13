@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -392,7 +393,19 @@ func DoWssRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		targetHeader.Set(key, value)
 	}
 	targetHeader.Set("Content-Type", c.Request.Header.Get("Content-Type"))
-	targetConn, _, err := websocket.DefaultDialer.Dial(fullRequestURL, targetHeader)
+	// Build proxy function: prefer channel-level proxy setting, fall back to
+	// HTTPS_PROXY/HTTP_PROXY environment variables.
+	proxyFunc := http.ProxyFromEnvironment
+	if info.ChannelSetting.Proxy != "" {
+		if proxyURL, parseErr := url.Parse(info.ChannelSetting.Proxy); parseErr == nil {
+			proxyFunc = http.ProxyURL(proxyURL)
+		}
+	}
+	dialer := &websocket.Dialer{
+		Proxy:            proxyFunc,
+		HandshakeTimeout: 45 * time.Second,
+	}
+	targetConn, _, err := dialer.Dial(fullRequestURL, targetHeader)
 	if err != nil {
 		return nil, fmt.Errorf("dial failed to %s: %w", common.SanitizeURLForLog(fullRequestURL), err)
 	}
