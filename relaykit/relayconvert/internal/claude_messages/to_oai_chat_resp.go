@@ -309,6 +309,19 @@ func PatchClaudeMessageDeltaUsageData(data string, usage *dto.ClaudeUsage) strin
 		data = setMessageDeltaUsageInt(data, "usage.cache_creation.ephemeral_1h_input_tokens", usage.CacheCreation.Ephemeral1hInputTokens)
 	}
 
+	// sudoapi: Carry this gateway's billed quota on the final message_delta so
+	// Anthropic-format clients can render real cost.
+	if usage.CostUnits != nil {
+		if patched, err := sjson.Set(data, "usage.cost_units", *usage.CostUnits); err == nil {
+			data = patched
+		}
+		if usage.CostCurrency != "" {
+			if patched, err := sjson.Set(data, "usage.cost_currency", usage.CostCurrency); err == nil {
+				data = patched
+			}
+		}
+	}
+
 	return data
 }
 

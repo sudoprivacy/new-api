@@ -127,3 +127,33 @@ func TestBuildMessageDeltaPatchUsage(t *testing.T) {
 		require.EqualValues(t, 0, usage.CacheCreation.Ephemeral1hInputTokens)
 	})
 }
+
+// sudoapi: cost_units/cost_currency are injected into the patched message_delta
+// usage so Anthropic-format clients can read this gateway's billed quota.
+func TestPatchClaudeMessageDeltaUsageDataInjectsCost(t *testing.T) {
+	originalData := `{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":53}}`
+	quota := 385000
+	usage := &dto.ClaudeUsage{
+		InputTokens:  100,
+		CostUnits:    &quota,
+		CostCurrency: "sudo_point",
+	}
+
+	patchedData := patchClaudeMessageDeltaUsageData(originalData, usage)
+
+	require.EqualValues(t, 385000, gjson.Get(patchedData, "usage.cost_units").Int())
+	require.Equal(t, "sudo_point", gjson.Get(patchedData, "usage.cost_currency").String())
+	require.EqualValues(t, 100, gjson.Get(patchedData, "usage.input_tokens").Int())
+}
+
+// sudoapi: without a cost the patched usage must not carry cost fields, so
+// clients fall back to their own estimate instead of reading a bogus zero.
+func TestPatchClaudeMessageDeltaUsageDataOmitsCostWhenUnset(t *testing.T) {
+	originalData := `{"type":"message_delta","usage":{"output_tokens":53}}`
+	usage := &dto.ClaudeUsage{InputTokens: 100}
+
+	patchedData := patchClaudeMessageDeltaUsageData(originalData, usage)
+
+	assert.False(t, gjson.Get(patchedData, "usage.cost_units").Exists())
+	assert.False(t, gjson.Get(patchedData, "usage.cost_currency").Exists())
+}

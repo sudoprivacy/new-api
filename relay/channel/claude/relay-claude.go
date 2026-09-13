@@ -17,6 +17,8 @@ import (
 	"github.com/QuantumNous/new-api/setting/model_setting"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func stopReasonClaude2OpenAI(reason string) string {
@@ -111,7 +113,12 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 			// 确保 message_delta 的 usage 包含完整的 input_tokens 和 cache 相关字段
 			// 解决 AWS Bedrock 等上游返回的 message_delta 缺少这些字段的问题
 			if !shouldSkipClaudeMessageDeltaUsagePatch(info) {
-				data = patchClaudeMessageDeltaUsageData(data, buildMessageDeltaPatchUsage(&claudeResponse, claudeInfo))
+				patchUsage := buildMessageDeltaPatchUsage(&claudeResponse, claudeInfo)
+				// sudoapi: On the final delta, attach this gateway's billed
+				// quota so Anthropic-format clients (e.g. sudocode) show real
+				// cost, mirroring the OpenAI-format usage.Quota path.
+				injectClaudeMessageDeltaCost(c, info, claudeInfo, &claudeResponse, patchUsage)
+				data = patchClaudeMessageDeltaUsageData(data, patchUsage)
 			}
 		}
 		countClaudeStreamBillableTools(c, info, &claudeResponse)
@@ -256,7 +263,10 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 			return types.NewError(err, types.ErrorCodeBadResponseBody)
 		}
 	case types.RelayFormatClaude:
-		responseData = data
+		// sudoapi: Attach this gateway's billed quota to the Claude-native
+		// response usage so Anthropic-format clients (e.g. sudocode) can show
+		// real cost, mirroring the OpenAI-format usage.Quota path above.
+		responseData = injectClaudeResponseCost(c, info, claudeInfo, data)
 	}
 
 	if claudeResponse.Usage != nil && claudeResponse.Usage.ServerToolUse != nil && claudeResponse.Usage.ServerToolUse.WebSearchRequests > 0 {
@@ -293,4 +303,63 @@ func ClaudeHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayI
 		return nil, handleErr
 	}
 	return claudeInfo.Usage, nil
+}
+
+// sudoapi: sudoPointCurrency labels Claude-native usage.cost_units so
+// Anthropic-format clients can distinguish this gateway's quota points from a
+// raw dollar amount.
+const sudoPointCurrency = "sudo_point"
+
+// sudoapi: injectClaudeMessageDeltaCost attaches this gateway's billed quota to
+// the final Claude message_delta usage patch, mirroring the OpenAI-format
+// usage.Quota path so Anthropic-format clients (e.g. sudocode) can render real
+// cost instead of a local estimate. Only the terminating delta (stop_reason
+// set) carries it, once the token counts are complete.
+func injectClaudeMessageDeltaCost(
+	c *gin.Context,
+	info *relaycommon.RelayInfo,
+	claudeInfo *ClaudeResponseInfo,
+	claudeResponse *dto.ClaudeResponse,
+	patchUsage *dto.ClaudeUsage,
+) {
+	if patchUsage == nil || claudeInfo == nil || claudeInfo.Usage == nil {
+		return
+	}
+	if claudeResponse == nil || claudeResponse.Delta == nil || claudeResponse.Delta.StopReason == nil {
+		return
+	}
+	openAIUsage := buildOpenAIStyleUsageFromClaudeUsage(claudeInfo.Usage)
+	quota := service.CalculateTextQuota(c, info, &openAIUsage)
+	if quota <= 0 {
+		return
+	}
+	patchUsage.CostUnits = &quota
+	patchUsage.CostCurrency = sudoPointCurrency
+}
+
+// sudoapi: injectClaudeResponseCost attaches this gateway's billed quota to a
+// non-streaming Claude-native response body's usage object, so Anthropic-format
+// clients (e.g. sudocode) can render real cost. Mirrors the OpenAI-format
+// usage.Quota path. Returns the original bytes unchanged when no quota applies.
+func injectClaudeResponseCost(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, data []byte) []byte {
+	if claudeInfo == nil || claudeInfo.Usage == nil {
+		return data
+	}
+	openAIUsage := buildOpenAIStyleUsageFromClaudeUsage(claudeInfo.Usage)
+	quota := service.CalculateTextQuota(c, info, &openAIUsage)
+	if quota <= 0 {
+		return data
+	}
+	if !gjson.GetBytes(data, "usage").Exists() {
+		return data
+	}
+	patched, err := sjson.SetBytes(data, "usage.cost_units", quota)
+	if err != nil {
+		return data
+	}
+	patched, err = sjson.SetBytes(patched, "usage.cost_currency", sudoPointCurrency)
+	if err != nil {
+		return data
+	}
+	return patched
 }

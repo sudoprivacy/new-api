@@ -654,6 +654,11 @@ type ClaudeUsage struct {
 	ClaudeCacheCreation1hTokens int                  `json:"claude_cache_creation_1_h_tokens"`
 	ServerToolUse               *ClaudeServerToolUse `json:"server_tool_use,omitempty"`
 	BillingUsage                *BillingUsage        `json:"billing_usage,omitempty"`
+	// sudoapi: Surface this gateway's billed quota on Claude-native usage so
+	// Anthropic-format clients (e.g. sudocode) can show real cost, matching
+	// the OpenAI-format path that already sets usage.Quota.
+	CostUnits    *int   `json:"cost_units,omitempty"`
+	CostCurrency string `json:"cost_currency,omitempty"`
 }
 
 type ClaudeCacheCreationUsage struct {
