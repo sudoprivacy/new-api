@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
@@ -233,6 +234,95 @@ type ClaudeRequest struct {
 	// ServiceTier specifies upstream service level and may affect billing.
 	// This field is filtered by default and can be enabled via channel setting allow_service_tier.
 	ServiceTier string `json:"service_tier,omitempty"`
+
+	// extra carries top-level fields this struct does not model.
+	//
+	// Outside the pass-through path a request is decoded into this struct and
+	// re-encoded before it goes upstream, so anything absent here was silently
+	// dropped — including every field Anthropic adds after this struct was last
+	// updated. Measured: with `cache-diagnosis-2026-04-07`, a client sending
+	// `diagnostics` got 4 of 4 diagnoses talking to Anthropic directly and 0 of
+	// 4 through this gateway, because `diagnostics` is not a field above.
+	// Holding the unknown keys and putting them back on encode keeps the
+	// gateway transparent to features it has not been taught yet.
+	extra map[string]json.RawMessage
+}
+
+// claudeRequestKnownFields is the set of JSON names ClaudeRequest models,
+// derived from the struct tags so it cannot drift as fields are added.
+var claudeRequestKnownFields = func() map[string]struct{} {
+	known := make(map[string]struct{})
+	t := reflect.TypeOf(ClaudeRequest{})
+	for i := 0; i < t.NumField(); i++ {
+		tag := t.Field(i).Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		if comma := strings.Index(tag, ","); comma >= 0 {
+			tag = tag[:comma]
+		}
+		if tag != "" {
+			known[tag] = struct{}{}
+		}
+	}
+	return known
+}()
+
+// UnmarshalJSON decodes the modelled fields, then keeps whatever is left so
+// MarshalJSON can put it back.
+func (c *ClaudeRequest) UnmarshalJSON(data []byte) error {
+	type claudeRequestAlias ClaudeRequest // sheds the methods, avoiding recursion
+	var decoded claudeRequestAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*c = ClaudeRequest(decoded)
+
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(data, &all); err != nil {
+		// A body that is valid for the struct but not an object is not
+		// something this can improve on; leave it to the caller.
+		return nil
+	}
+	for name, raw := range all {
+		if _, modelled := claudeRequestKnownFields[name]; modelled {
+			continue
+		}
+		if c.extra == nil {
+			c.extra = make(map[string]json.RawMessage, 1)
+		}
+		c.extra[name] = raw
+	}
+	return nil
+}
+
+// MarshalJSON re-attaches the unmodelled fields.
+//
+// With nothing extra to add it returns the plain struct encoding, byte for
+// byte, so the overwhelmingly common request is serialised exactly as before —
+// no key reordering, no behaviour change. A modelled field always wins over a
+// leftover of the same name, so this can never resurrect a field the relay
+// deliberately cleared.
+func (c ClaudeRequest) MarshalJSON() ([]byte, error) {
+	type claudeRequestAlias ClaudeRequest
+	encoded, err := json.Marshal(claudeRequestAlias(c))
+	if err != nil {
+		return nil, err
+	}
+	if len(c.extra) == 0 {
+		return encoded, nil
+	}
+	var merged map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &merged); err != nil {
+		return encoded, nil
+	}
+	for name, raw := range c.extra {
+		if _, taken := merged[name]; taken {
+			continue
+		}
+		merged[name] = raw
+	}
+	return json.Marshal(merged)
 }
 
 // OutputConfigForEffort just for extract effort
