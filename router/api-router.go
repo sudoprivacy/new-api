@@ -284,6 +284,7 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/stat", middleware.AdminAuth(), controller.GetLogsStat)
 		logRoute.GET("/self/stat", middleware.UserAuth(), controller.GetLogsSelfStat)
 		logRoute.GET("/channel_affinity_usage_cache", middleware.AdminAuth(), controller.GetChannelAffinityUsageCacheStats)
+		logRoute.GET("/cache_health", middleware.AdminAuth(), controller.GetChannelCacheHealth)
 		logRoute.GET("/search", middleware.AdminAuth(), controller.SearchAllLogs)
 		// sudoapi: Logs api.
 		logRoute.GET("/self", middleware.UserAuth(), v1.GetUserSelfLogs)
