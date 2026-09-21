@@ -51,10 +51,25 @@ func GetAndValidateRequest(c *gin.Context, format types.RelayFormat) (request dt
 		request, err = GetAndValidAudioRequest(c, relayMode)
 	case types.RelayFormatOpenAIRealtime:
 		request = &dto.BaseRequest{}
+	// sudoapi: Typesafe adaptor.
+	case types.RelayFormatTypesafe:
+		request, err = GetAndValidTypesafeRequest(c)
 	default:
 		return nil, fmt.Errorf("unsupported relay format: %s", format)
 	}
 	return request, err
+}
+
+// sudoapi: Typesafe adaptor.
+func GetAndValidTypesafeRequest(c *gin.Context) (*dto.TypesafeRequest, error) {
+	var req dto.TypesafeRequest
+	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
+		return nil, err
+	}
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	return &req, nil
 }
 
 func GetAndValidAudioRequest(c *gin.Context, relayMode int) (*dto.AudioRequest, error) {

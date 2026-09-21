@@ -49,6 +49,12 @@ const sudoChannelTypeConfigs: Record<number, ChannelTypeConfig> = {
     icon: 'seedance',
     name: CHANNEL_TYPES[10001],
   },
+  // sudoapi: Typesafe adaptor.
+  10002: {
+    id: 10002,
+    icon: 'TypeSafe',
+    name: CHANNEL_TYPES[10002],
+  }
 }
 
 /**

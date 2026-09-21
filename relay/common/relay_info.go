@@ -622,6 +622,10 @@ func GenRelayInfo(c *gin.Context, relayFormat types.RelayFormat, request dto.Req
 	case types.RelayFormatMjProxy:
 		info = genBaseRelayInfo(c, nil)
 		info.TaskRelayInfo = &TaskRelayInfo{}
+	// sudoapi: Typesafe adaptor.
+	case types.RelayFormatTypesafe:
+		info = genBaseRelayInfo(c, request)
+		info.RelayFormat = types.RelayFormatTypesafe
 	default:
 		err = errors.New("invalid relay format")
 	}

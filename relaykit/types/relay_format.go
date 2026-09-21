@@ -15,6 +15,9 @@ const (
 	RelayFormatRerank                                = "rerank"
 	RelayFormatEmbedding                             = "embedding"
 
+	// sudoapi: Typesafe adaptor.
+	RelayFormatTypesafe = "typesafe"
+
 	RelayFormatTask    = "task"
 	RelayFormatMjProxy = "mj_proxy"
 )

@@ -9,6 +9,7 @@ import (
 const (
 	ChannelTypeSudoBase = 10000
 	ChannelTypeSeedance = 10001
+	ChannelTypeTypesafe = 10002
 )
 
 var ChannelBaseURLs map[int]string
@@ -18,4 +19,8 @@ func init() {
 
 	ChannelTypeNames[ChannelTypeSeedance] = "Seedance"
 	ChannelBaseURLs[ChannelTypeSeedance] = "https://ark.cn-beijing.volces.com"
+
+	// sudoapi: Typesafe adaptor.
+	ChannelTypeNames[ChannelTypeTypesafe] = "TypeSafe"
+	ChannelBaseURLs[ChannelTypeTypesafe] = "https://api.typesafe.ai"
 }

@@ -83,6 +83,8 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		constant.ChannelTypeDoubaoVideo,
 		// sudoapi: Official Seedance task adaptor.
 		constant.ChannelTypeSeedance,
+		// sudoapi: Typesafe adaptor.
+		constant.ChannelTypeTypesafe,
 		constant.ChannelTypeVidu,
 	}
 	if lo.Contains(unsupportedTestChannelTypes, channel.Type) {

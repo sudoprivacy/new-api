@@ -26,10 +26,14 @@ export const CHANNEL_TYPE_NEW_API = 60
 // sudoapi: Official Seedance task adaptor.
 const sudoChannelTypes = {
   10001: 'Seedance',
+  // sudoapi: Typesafe adaptor.
+  10002: 'TypeSafe',
 }
 // sudoapi: Official Seedance task adaptor.
 const sudoChannelTypeDisplayOrder: number[] = [
   10001,
+  // sudoapi: Typesafe adaptor.
+  10002,
 ]
 
 export const CHANNEL_TYPES = {
