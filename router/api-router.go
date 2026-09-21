@@ -293,6 +293,9 @@ func SetApiRouter(router *gin.Engine) {
 		// sudoapi: API for sudowork
 		logRoute.GET("/query", middleware.AdminAuth(), v1.AdminGetUserLogs)
 
+		// sudoapi: Reconciliation between this gateway's billing and a channel's.
+		logRoute.GET("/reconciliation", middleware.AdminAuth(), controller.GetBillingReconciliation)
+
 		systemTaskRoute := apiRouter.Group("/system-task")
 		systemTaskRoute.Use(middleware.RootAuth())
 		{
