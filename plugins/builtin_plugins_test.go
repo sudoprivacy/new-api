@@ -83,6 +83,10 @@ func TestBuiltInTaskPluginResponsesAndUsageContracts(t *testing.T) {
 	actualKeys := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() {
+			// sudoapi: Seedance plugin.
+			if entry.Name() == "volcengine" {
+				continue
+			}
 			actualKeys = append(actualKeys, entry.Name())
 		}
 	}

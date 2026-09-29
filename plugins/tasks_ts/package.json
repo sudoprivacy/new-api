@@ -1,0 +1,19 @@
+{
+	"name": "new-api-plugins",
+	"version": "1.0.0",
+	"private": true,
+	"keywords": [],
+	"license": "ISC",
+	"author": "",
+	"scripts": {
+		"build_volcengine": "esbuild src/volcengine/index.ts --bundle --platform=neutral --format=esm --target=es2020 --charset=utf8 --outfile=../tasks/volcengine/plugin.js"
+	},
+	"devDependencies": {
+		"esbuild": "^0.28.2",
+		"prettier": "^3.9.9",
+		"prettier-plugin-organize-imports": "^4.3.0",
+		"prettier-plugin-packagejson": "^3.0.2",
+		"vitest": "^5.0.2"
+	},
+	"packageManager": "pnpm@12.8.1"
+}
