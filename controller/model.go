@@ -267,12 +267,10 @@ func ListModels(c *gin.Context, modelType int) {
 	case constant.ChannelTypeAnthropic:
 		useranthropicModels := make([]dto.AnthropicModel, len(userOpenAiModels))
 		for i, model := range userOpenAiModels {
-			useranthropicModels[i] = dto.AnthropicModel{
-				ID:          model.Id,
-				CreatedAt:   time.Unix(int64(model.Created), 0).UTC().Format(time.RFC3339),
-				DisplayName: model.Id,
-				Type:        "model",
-			}
+			useranthropicModels[i] = dto.NewAnthropicModel(
+				model,
+				time.Unix(int64(model.Created), 0).UTC().Format(time.RFC3339),
+			)
 		}
 		firstID := ""
 		lastID := ""
@@ -289,10 +287,7 @@ func ListModels(c *gin.Context, modelType int) {
 	case constant.ChannelTypeGemini:
 		userGeminiModels := make([]dto.GeminiModel, len(userOpenAiModels))
 		for i, model := range userOpenAiModels {
-			userGeminiModels[i] = dto.GeminiModel{
-				Name:        model.Id,
-				DisplayName: model.Id,
-			}
+			userGeminiModels[i] = dto.NewGeminiModel(model)
 		}
 		c.JSON(200, gin.H{
 			"models":        userGeminiModels,
@@ -331,14 +326,19 @@ func EnabledListModels(c *gin.Context) {
 func RetrieveModel(c *gin.Context, modelType int) {
 	modelId := c.Param("model")
 	if aiModel, ok := openAIModelsMap[modelId]; ok {
+		// Map access yields a copy, so enriching it here cannot mutate the
+		// static table. This has to happen: retrieving one model used to return
+		// the bare static entry while listing the same model went through
+		// `buildOpenAIModel` and came back enriched, so the two endpoints
+		// disagreed about the same model's capabilities.
+		aiModel.SupportedEndpointTypes = model.GetModelSupportEndpointTypes(modelId)
+		enrichModelMetadata(&aiModel)
 		switch modelType {
 		case constant.ChannelTypeAnthropic:
-			c.JSON(200, dto.AnthropicModel{
-				ID:          aiModel.Id,
-				CreatedAt:   time.Unix(int64(aiModel.Created), 0).UTC().Format(time.RFC3339),
-				DisplayName: aiModel.Id,
-				Type:        "model",
-			})
+			c.JSON(200, dto.NewAnthropicModel(
+				aiModel,
+				time.Unix(int64(aiModel.Created), 0).UTC().Format(time.RFC3339),
+			))
 		default:
 			c.JSON(200, aiModel)
 		}

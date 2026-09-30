@@ -3,6 +3,7 @@
 package controller
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -73,5 +74,78 @@ func TestModelCapabilityContractOnTheWire(t *testing.T) {
 			"vision_supported must be absent rather than false, so the consumer applies its own default")
 		assert.Nil(t, entry.ImageMaxBytes)
 		assert.Nil(t, entry.ImageMaxDimension)
+	})
+}
+
+// enrichedModel is what every shape is projected from: the OpenAI-shaped entry
+// after the registry has filled it in. Mirrors what buildOpenAIModel produces.
+func enrichedModel(t *testing.T, modelName string) dto.OpenAIModels {
+	t.Helper()
+	m := dto.OpenAIModels{Id: modelName, Object: "model", Created: 1626777600, OwnedBy: "test"}
+	enrichModelMetadata(&m)
+	return m
+}
+
+func decodeToMap(t *testing.T, v any) map[string]any {
+	t.Helper()
+	encoded, err := common.Marshal(v)
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, common.Unmarshal(encoded, &decoded))
+	return decoded
+}
+
+// The OpenAI shape was the only one that carried capability metadata; the
+// Anthropic and Gemini projections were hand-written field-by-field literals and
+// dropped all of it. These assert on the encoded JSON rather than the structs,
+// because a dropped field is invisible at the struct level — the zero value
+// encodes as a plausible-looking response.
+func TestAlternateModelShapesCarryCapabilities(t *testing.T) {
+	t.Run("anthropic shape carries what the registry knows", func(t *testing.T) {
+		decoded := decodeToMap(t, dto.NewAnthropicModel(
+			enrichedModel(t, "claude-opus-5"), "2021-07-20T00:00:00Z"))
+
+		assert.Equal(t, "claude-opus-5", decoded["id"])
+		assert.Equal(t, "model", decoded["type"])
+		assert.Equal(t, "2021-07-20T00:00:00Z", decoded["created_at"])
+		assert.EqualValues(t, 1000000, decoded["context_window"])
+		assert.EqualValues(t, 128000, decoded["max_output_tokens"])
+		assert.Equal(t, true, decoded["vision_supported"])
+		assert.EqualValues(t, 5*1024*1024, decoded["image_max_bytes"])
+		assert.EqualValues(t, 8000, decoded["image_max_dimension"])
+	})
+
+	// The extension is only safe if it is invisible when there is nothing to
+	// add. A client written against Anthropic's own /v1/models must see the
+	// upstream key set exactly, not four fields plus a scatter of zeroes.
+	t.Run("anthropic shape for an unknown model is exactly the upstream key set", func(t *testing.T) {
+		decoded := decodeToMap(t, dto.NewAnthropicModel(
+			enrichedModel(t, "some-model-not-in-the-registry"), "2021-07-20T00:00:00Z"))
+
+		keys := make([]string, 0, len(decoded))
+		for k := range decoded {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		assert.Equal(t, []string{"created_at", "display_name", "id", "type"}, keys)
+	})
+
+	t.Run("gemini shape carries the token limits under its own names", func(t *testing.T) {
+		decoded := decodeToMap(t, dto.NewGeminiModel(enrichedModel(t, "claude-opus-5")))
+
+		assert.Equal(t, "claude-opus-5", decoded["name"])
+		assert.EqualValues(t, 1000000, decoded["inputTokenLimit"])
+		assert.EqualValues(t, 128000, decoded["outputTokenLimit"])
+	})
+
+	// Null means unknown; 0 would claim the model accepts no input and can emit
+	// no output, which is worse than saying nothing.
+	t.Run("gemini shape leaves unknown limits null rather than zero", func(t *testing.T) {
+		decoded := decodeToMap(t, dto.NewGeminiModel(
+			enrichedModel(t, "some-model-not-in-the-registry")))
+
+		require.Contains(t, decoded, "inputTokenLimit")
+		assert.Nil(t, decoded["inputTokenLimit"])
+		assert.Nil(t, decoded["outputTokenLimit"])
 	})
 }
