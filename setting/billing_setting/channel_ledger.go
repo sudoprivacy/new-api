@@ -3,6 +3,10 @@
 package billing_setting
 
 import (
+	"fmt"
+	"net/url"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
@@ -20,6 +24,10 @@ type ChannelLedger struct {
 	// AdminKey authenticates against the channel's admin API. It is a secret and
 	// is never returned to the client by the reconciliation endpoint.
 	AdminKey string `json:"admin_key"`
+	// APIKeyID limits the upstream ledger to the key used by this channel.
+	APIKeyID int64 `json:"api_key_id"`
+	// StartAt excludes history from before billing IDs were captured (Unix seconds).
+	StartAt int64 `json:"start_at,omitempty"`
 }
 
 var (
@@ -43,7 +51,62 @@ func GetReconcilableChannelIds() []int {
 	for channelId := range channelLedgers {
 		ids = append(ids, channelId)
 	}
+	sort.Ints(ids)
 	return ids
+}
+
+// GetChannelLedgers snapshots the configuration for an entire reconciliation.
+func GetChannelLedgers() map[int]ChannelLedger {
+	channelLedgersMutex.RLock()
+	defer channelLedgersMutex.RUnlock()
+	result := make(map[int]ChannelLedger, len(channelLedgers))
+	for id, ledger := range channelLedgers {
+		result[id] = ledger
+	}
+	return result
+}
+
+func (ledger ChannelLedger) Validate() error {
+	u, err := url.Parse(ledger.BaseURL)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("ledger base_url must be an HTTP(S) URL without credentials, query or fragment")
+	}
+	if strings.TrimSpace(ledger.AdminKey) == "" || ledger.APIKeyID <= 0 || ledger.StartAt < 0 {
+		return fmt.Errorf("ledger requires admin_key and a positive api_key_id")
+	}
+	return nil
+}
+
+func parseChannelLedgers(jsonStr string) (map[int]ChannelLedger, error) {
+	ledgers := make(map[int]ChannelLedger)
+	if jsonStr != "" {
+		if err := common.Unmarshal([]byte(jsonStr), &ledgers); err != nil {
+			return nil, fmt.Errorf("invalid ChannelLedgers JSON")
+		}
+	}
+	seen := make(map[string]bool)
+	for id, ledger := range ledgers {
+		if id <= 0 {
+			return nil, fmt.Errorf("ledger channel id must be positive")
+		}
+		if err := ledger.Validate(); err != nil {
+			return nil, fmt.Errorf("channel %d: %w", id, err)
+		}
+		ledger.BaseURL = strings.TrimRight(ledger.BaseURL, "/")
+		scope := fmt.Sprintf("%s/%d", ledger.BaseURL, ledger.APIKeyID)
+		if seen[scope] {
+			return nil, fmt.Errorf("each upstream API key must belong to only one reconciled channel")
+		}
+		seen[scope] = true
+		ledgers[id] = ledger
+	}
+	return ledgers, nil
+}
+
+// ValidateChannelLedgersJSONString checks the option before it is persisted.
+func ValidateChannelLedgersJSONString(value string) error {
+	_, err := parseChannelLedgers(value)
+	return err
 }
 
 // UpdateChannelLedgersByJSONString applies the "ChannelLedgers" system option,
@@ -51,11 +114,9 @@ func GetReconcilableChannelIds() []int {
 // configuration, so the stored value replaces the set outright: removing a
 // channel from it must stop reconciling that channel.
 func UpdateChannelLedgersByJSONString(jsonStr string) error {
-	ledgers := make(map[int]ChannelLedger)
-	if jsonStr != "" {
-		if err := common.Unmarshal([]byte(jsonStr), &ledgers); err != nil {
-			return err
-		}
+	ledgers, err := parseChannelLedgers(jsonStr)
+	if err != nil {
+		return err
 	}
 	channelLedgersMutex.Lock()
 	defer channelLedgersMutex.Unlock()
