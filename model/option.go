@@ -220,6 +220,9 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if key == "ChannelLedgers" {
+		return billing_setting.ValidateChannelLedgersJSONString(value)
+	}
 	if key == upstream_catalog.OptionKey {
 		_, err := upstream_catalog.Decode(value)
 		return err

@@ -18,6 +18,7 @@ import (
 // instances and each run is recorded as one task row. Call this before
 // service.StartSystemTaskRunner.
 func RegisterScheduledSystemTasks() {
+	service.RegisterSystemTaskHandler(billingReconciliationHandler{})
 	service.RegisterSystemTaskHandler(channelTestHandler{})
 	service.RegisterSystemTaskHandler(modelUpdateHandler{})
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})

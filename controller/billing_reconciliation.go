@@ -58,6 +58,7 @@ func GetBillingReconciliation(c *gin.Context) {
 		"end_date":   lastDay.Format(time.DateOnly),
 		"timezone":   location.String(),
 		"by_channel": report.ByChannel,
+		"coverage":   report.Coverage,
 		"totals":     report.Totals,
 		"anomalies":  report.Anomalies,
 		"anomaly_counts": lo.CountValuesBy(report.Anomalies, func(anomaly service.RequestAnomaly) service.AnomalyKind {

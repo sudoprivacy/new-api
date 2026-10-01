@@ -33,7 +33,7 @@ func ShouldCopyUpstreamHeader(c *gin.Context, k string, v []string) bool {
 		return false
 	}
 	if strings.EqualFold(k, common.RequestIdKey) {
-		if c != nil && len(v) > 0 {
+		if c != nil && len(v) > 0 && !strings.HasPrefix(c.GetString(common.UpstreamRequestIdKey), "client:") {
 			c.Set(common.UpstreamRequestIdKey, v[0])
 		}
 		return false

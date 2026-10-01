@@ -2,12 +2,15 @@
 
 package model
 
+import "context"
+
 // GatewayChargeRow is one consume log row reduced to what reconciliation needs:
 // what a request earned, in quota units, and which channel served it.
 type GatewayChargeRow struct {
-	RequestId string `gorm:"column:request_id"`
-	ChannelId int    `gorm:"column:channel_id"`
-	Quota     int    `gorm:"column:quota"`
+	RequestId         string `gorm:"column:request_id"`
+	UpstreamRequestId string `gorm:"column:upstream_request_id"`
+	ChannelId         int    `gorm:"column:channel_id"`
+	Quota             int    `gorm:"column:quota"`
 }
 
 // GetGatewayChargesInWindow returns the consume-log rows for the given channels
@@ -16,13 +19,13 @@ type GatewayChargeRow struct {
 // Rows without a request id are skipped: they predate the correlation id, or the
 // request never carried one, so there is nothing to join them on and reporting
 // them would only manufacture unmatched entries.
-func GetGatewayChargesInWindow(startTimestamp, endTimestamp int64, channelIds []int) ([]GatewayChargeRow, error) {
+func GetGatewayChargesInWindow(ctx context.Context, startTimestamp, endTimestamp int64, channelIds []int) ([]GatewayChargeRow, error) {
 	if len(channelIds) == 0 {
 		return nil, nil
 	}
 	var rows []GatewayChargeRow
-	err := LOG_DB.Model(&Log{}).
-		Select("request_id", "channel_id", "quota").
+	err := LOG_DB.WithContext(ctx).Model(&Log{}).
+		Select("request_id", "upstream_request_id", "channel_id", "quota").
 		Where("type = ?", LogTypeConsume).
 		Where("channel_id IN ?", channelIds).
 		Where("created_at >= ?", startTimestamp).

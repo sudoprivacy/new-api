@@ -44,6 +44,7 @@ type GatewayCharge struct {
 // ChannelCharge is one row of a channel's own usage log: what the same request
 // cost us, in the channel's units (USD).
 type ChannelCharge struct {
+	ChannelId int
 	RequestId string
 	CostUSD   float64
 }
@@ -91,9 +92,18 @@ const (
 
 // ReconciliationReport is the outcome for one window.
 type ReconciliationReport struct {
+	Coverage  []ChannelReconciliationCoverage
 	ByChannel []ChannelMargin
 	Totals    ChannelMargin
 	Anomalies []RequestAnomaly
+}
+
+// Coverage makes the deployment cutoff explicit instead of implying that older
+// rows without an upstream billing ID were successfully reconciled.
+type ChannelReconciliationCoverage struct {
+	ChannelId int   `json:"channel_id"`
+	StartAt   int64 `json:"start_at"`
+	EndAt     int64 `json:"end_at"`
 }
 
 // Reconcile pairs this gateway's charges with a channel's by correlation id and
@@ -107,20 +117,24 @@ func Reconcile(gateway []GatewayCharge, channel []ChannelCharge, quotaPerUnit fl
 		quotaPerUnit = common.QuotaPerUnit
 	}
 
-	revenueUSD := make(map[string]float64, len(gateway))
-	channelOf := make(map[string]int, len(gateway))
-	gatewayRows := make(map[string]int, len(gateway))
+	revenueUSD := make(map[reconciliationKey]float64, len(gateway))
+	gatewayRows := make(map[reconciliationKey]int, len(gateway))
 	for _, charge := range gateway {
-		revenueUSD[charge.RequestId] += float64(charge.Quota) / quotaPerUnit
-		channelOf[charge.RequestId] = charge.ChannelId
-		gatewayRows[charge.RequestId]++
+		key := reconciliationKey{charge.ChannelId, charge.RequestId}
+		revenueUSD[key] += float64(charge.Quota) / quotaPerUnit
+		if charge.Quota >= 0 {
+			gatewayRows[key]++
+		}
 	}
 
-	costUSD := make(map[string]float64, len(channel))
-	channelRows := make(map[string]int, len(channel))
+	costUSD := make(map[reconciliationKey]float64, len(channel))
+	channelRows := make(map[reconciliationKey]int, len(channel))
 	for _, charge := range channel {
-		costUSD[charge.RequestId] += charge.CostUSD
-		channelRows[charge.RequestId]++
+		key := reconciliationKey{charge.ChannelId, charge.RequestId}
+		costUSD[key] += charge.CostUSD
+		if charge.CostUSD >= 0 {
+			channelRows[key]++
+		}
 	}
 
 	byChannel := make(map[int]*ChannelMargin)
@@ -134,16 +148,10 @@ func Reconcile(gateway []GatewayCharge, channel []ChannelCharge, quotaPerUnit fl
 	}
 
 	report := ReconciliationReport{}
-	seen := make(map[string]bool, len(revenueUSD)+len(costUSD))
-	for _, requestId := range sortedRequestIds(revenueUSD, costUSD) {
-		if seen[requestId] {
-			continue
-		}
-		seen[requestId] = true
-
-		revenue, billed := revenueUSD[requestId]
-		cost, served := costUSD[requestId]
-		channelId := channelOf[requestId]
+	for _, key := range sortedRequestIds(revenueUSD, costUSD) {
+		revenue, billed := revenueUSD[key]
+		cost, served := costUSD[key]
+		channelId, requestId := key.channelId, key.requestId
 
 		margin := marginFor(channelId)
 		margin.Requests++
@@ -171,7 +179,7 @@ func Reconcile(gateway []GatewayCharge, channel []ChannelCharge, quotaPerUnit fl
 			})
 		}
 
-		if occurrences := max(gatewayRows[requestId], channelRows[requestId]); occurrences > 1 {
+		if occurrences := max(gatewayRows[key], channelRows[key]); occurrences > 1 {
 			report.Anomalies = append(report.Anomalies, RequestAnomaly{
 				RequestId: requestId, ChannelId: channelId,
 				Kind: AnomalyDuplicated, RevenueUSD: revenue, CostUSD: cost,
@@ -203,8 +211,13 @@ func finalizeMargin(margin *ChannelMargin) {
 	}
 }
 
-func sortedRequestIds(revenue, cost map[string]float64) []string {
-	ids := make([]string, 0, len(revenue)+len(cost))
+type reconciliationKey struct {
+	channelId int
+	requestId string
+}
+
+func sortedRequestIds(revenue, cost map[reconciliationKey]float64) []reconciliationKey {
+	ids := make([]reconciliationKey, 0, len(revenue)+len(cost))
 	for id := range revenue {
 		ids = append(ids, id)
 	}
@@ -213,6 +226,11 @@ func sortedRequestIds(revenue, cost map[string]float64) []string {
 			ids = append(ids, id)
 		}
 	}
-	sort.Strings(ids)
+	sort.Slice(ids, func(i, j int) bool {
+		if ids[i].channelId != ids[j].channelId {
+			return ids[i].channelId < ids[j].channelId
+		}
+		return ids[i].requestId < ids[j].requestId
+	})
 	return ids
 }

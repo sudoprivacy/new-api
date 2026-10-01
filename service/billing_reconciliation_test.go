@@ -31,9 +31,9 @@ func TestReconcileReportsMarginPerChannel(t *testing.T) {
 			{RequestId: "r3", ChannelId: 9, Quota: 500000},  // $1.00 earned
 		},
 		[]ChannelCharge{
-			{RequestId: "r1", CostUSD: 0.40},
-			{RequestId: "r2", CostUSD: 0.60},
-			{RequestId: "r3", CostUSD: 0.90},
+			{RequestId: "r1", ChannelId: 7, CostUSD: 0.40},
+			{RequestId: "r2", ChannelId: 7, CostUSD: 0.60},
+			{RequestId: "r3", ChannelId: 9, CostUSD: 0.90},
 		},
 		testQuotaPerUnit,
 	)
@@ -64,8 +64,8 @@ func TestReconcileFlagsRequestsTheGatewayNeverBilled(t *testing.T) {
 	report := Reconcile(
 		[]GatewayCharge{{RequestId: "r1", ChannelId: 7, Quota: 500000}},
 		[]ChannelCharge{
-			{RequestId: "r1", CostUSD: 0.40},
-			{RequestId: "r2", CostUSD: 0.25},
+			{RequestId: "r1", ChannelId: 7, CostUSD: 0.40},
+			{RequestId: "r2", ChannelId: 7, CostUSD: 0.25},
 		},
 		testQuotaPerUnit,
 	)
@@ -86,7 +86,7 @@ func TestReconcileFlagsRequestsTheChannelNeverServed(t *testing.T) {
 			{RequestId: "r1", ChannelId: 7, Quota: 500000},
 			{RequestId: "r2", ChannelId: 7, Quota: 250000},
 		},
-		[]ChannelCharge{{RequestId: "r1", CostUSD: 0.40}},
+		[]ChannelCharge{{RequestId: "r1", ChannelId: 7, CostUSD: 0.40}},
 		testQuotaPerUnit,
 	)
 
@@ -104,8 +104,8 @@ func TestReconcileFlagsRequestsThatCostMoreThanTheyEarned(t *testing.T) {
 			{RequestId: "dear", ChannelId: 7, Quota: 50000},
 		},
 		[]ChannelCharge{
-			{RequestId: "cheap", CostUSD: 0.40},
-			{RequestId: "dear", CostUSD: 0.30},
+			{RequestId: "cheap", ChannelId: 7, CostUSD: 0.40},
+			{RequestId: "dear", ChannelId: 7, CostUSD: 0.30},
 		},
 		testQuotaPerUnit,
 	)
@@ -121,8 +121,8 @@ func TestReconcileFlagsDoubleBilling(t *testing.T) {
 	report := Reconcile(
 		[]GatewayCharge{{RequestId: "r1", ChannelId: 7, Quota: 500000}},
 		[]ChannelCharge{
-			{RequestId: "r1", CostUSD: 0.40},
-			{RequestId: "r1", CostUSD: 0.40},
+			{RequestId: "r1", ChannelId: 7, CostUSD: 0.40},
+			{RequestId: "r1", ChannelId: 7, CostUSD: 0.40},
 		},
 		testQuotaPerUnit,
 	)
@@ -147,8 +147,8 @@ func TestReconcileNetsRefundsPerRequest(t *testing.T) {
 				{RequestId: "r1", ChannelId: 7, Quota: -500000},
 			},
 			[]ChannelCharge{
-				{RequestId: "r1", CostUSD: 0.40},
-				{RequestId: "r1", CostUSD: -0.40},
+				{RequestId: "r1", ChannelId: 7, CostUSD: 0.40},
+				{RequestId: "r1", ChannelId: 7, CostUSD: -0.40},
 			},
 			testQuotaPerUnit,
 		)
@@ -156,6 +156,7 @@ func TestReconcileNetsRefundsPerRequest(t *testing.T) {
 		assert.Zero(t, report.Totals.RevenueUSD)
 		assert.Zero(t, report.Totals.CostUSD)
 		assert.Empty(t, anomalyByKind(t, report, AnomalyUnderpriced))
+		assert.Empty(t, anomalyByKind(t, report, AnomalyDuplicated))
 	})
 
 	t.Run("refunded by the gateway only", func(t *testing.T) {
@@ -164,7 +165,7 @@ func TestReconcileNetsRefundsPerRequest(t *testing.T) {
 				{RequestId: "r1", ChannelId: 7, Quota: 500000},
 				{RequestId: "r1", ChannelId: 7, Quota: -500000},
 			},
-			[]ChannelCharge{{RequestId: "r1", CostUSD: 0.40}},
+			[]ChannelCharge{{RequestId: "r1", ChannelId: 7, CostUSD: 0.40}},
 			testQuotaPerUnit,
 		)
 
@@ -183,4 +184,24 @@ func TestReconcileHandlesEmptyWindow(t *testing.T) {
 	assert.Empty(t, report.Anomalies)
 	assert.Zero(t, report.Totals.Requests)
 	assert.Zero(t, report.Totals.MarginPct, "an empty window must not divide by zero revenue")
+}
+
+func TestReconcileKeepsChannelIdentityForRetriesAndUnbilledRequests(t *testing.T) {
+	report := Reconcile(
+		[]GatewayCharge{{RequestId: "retry", ChannelId: 9, Quota: 500000}},
+		[]ChannelCharge{
+			{RequestId: "retry", ChannelId: 7, CostUSD: 0.2},
+			{RequestId: "retry", ChannelId: 9, CostUSD: 0.4},
+		}, testQuotaPerUnit,
+	)
+	require.Len(t, report.ByChannel, 2)
+	assert.Equal(t, 7, report.ByChannel[0].ChannelId)
+	assert.Equal(t, 0, report.ByChannel[0].MatchedPairs)
+	assert.InDelta(t, -0.2, report.ByChannel[0].MarginUSD, 1e-9)
+	assert.Equal(t, 1, report.ByChannel[1].MatchedPairs)
+	assert.InDelta(t, 0.6, report.ByChannel[1].MarginUSD, 1e-9)
+	unbilled := anomalyByKind(t, report, AnomalyUnbilled)
+	require.Len(t, unbilled, 1)
+	assert.Equal(t, 7, unbilled[0].ChannelId)
+	assert.Empty(t, anomalyByKind(t, report, AnomalyDuplicated))
 }
