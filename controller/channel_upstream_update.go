@@ -490,13 +490,7 @@ func fetchAdvancedCustomUpstreamModelIDs(channel *model.Channel, baseURL string)
 
 func updateChannelUpstreamModelSettings(channel *model.Channel, settings dto.ChannelOtherSettings, updateModels bool) error {
 	channel.SetOtherSettings(settings)
-	updates := map[string]interface{}{
-		"settings": channel.OtherSettings,
-	}
-	if updateModels {
-		updates["models"] = channel.Models
-	}
-	return model.DB.Model(&model.Channel{}).Where("id = ?", channel.Id).Updates(updates).Error
+	return model.PersistDiscoveredChannelModels(channel, updateModels)
 }
 
 func checkAndPersistChannelUpstreamModelUpdates(
@@ -514,7 +508,13 @@ func checkAndPersistChannelUpstreamModelUpdates(
 		}
 	}
 
-	pendingAddModels, pendingRemoveModels, fetchErr := collectPendingUpstreamModelChanges(channel, *settings)
+	var pendingAddModels, pendingRemoveModels []string
+	var fetchErr error
+	if allowAutoApply && settings.UpstreamCatalogTrusted && settings.UpstreamModelUpdateAutoSyncEnabled {
+		pendingAddModels, pendingRemoveModels, fetchErr = collectTrustedCatalogChanges(channel)
+	} else {
+		pendingAddModels, pendingRemoveModels, fetchErr = collectPendingUpstreamModelChanges(channel, *settings)
+	}
 	settings.UpstreamModelUpdateLastCheckTime = now
 	if fetchErr != nil {
 		if err = updateChannelUpstreamModelSettings(channel, *settings, false); err != nil {
@@ -539,11 +539,6 @@ func checkAndPersistChannelUpstreamModelUpdates(
 
 	if err = updateChannelUpstreamModelSettings(channel, *settings, modelsChanged); err != nil {
 		return false, autoAdded, err
-	}
-	if modelsChanged {
-		if err = channel.UpdateAbilities(nil); err != nil {
-			return true, autoAdded, err
-		}
 	}
 	return modelsChanged, autoAdded, nil
 }
@@ -986,11 +981,6 @@ func applyChannelUpstreamModelUpdates(
 		return nil, nil, nil, nil, false, err
 	}
 
-	if modelsChanged {
-		if err := channel.UpdateAbilities(nil); err != nil {
-			return addModels, removeModels, remainingModels, remainingRemoveModels, true, err
-		}
-	}
 	return addModels, removeModels, remainingModels, remainingRemoveModels, modelsChanged, nil
 }
 
