@@ -39,11 +39,17 @@ func GetBillingMode(model string) string {
 	if mode, ok := billingSetting.BillingMode[model]; ok {
 		return mode
 	}
+	if _, ok := upstreamBillingExpression(model); ok {
+		return BillingModeTieredExpr
+	}
 	return BillingModeRatio
 }
 
 func GetBillingExpr(model string) (string, bool) {
 	expr, ok := billingSetting.BillingExpr[model]
+	if !ok {
+		return upstreamBillingExpression(model)
+	}
 	return expr, ok
 }
 

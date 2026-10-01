@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/upstream_catalog"
 )
 
 // ModelMetadata stores per-model metadata like context window size, max output
@@ -50,8 +51,9 @@ const claudeImageMaxDimension = 8000
 func visionPtr(v bool) *bool { return &v }
 
 var (
-	modelMetadataMap   = make(map[string]ModelMetadata)
-	modelMetadataMutex sync.RWMutex
+	modelMetadataMap       = make(map[string]ModelMetadata)
+	modelMetadataMutex     sync.RWMutex
+	modelMetadataOverrides = make(map[string]ModelMetadata)
 )
 
 // defaultModelMetadata provides sensible defaults for well-known models.
@@ -251,6 +253,22 @@ func mergeModelMetadata(overrides map[string]ModelMetadata) map[string]ModelMeta
 func GetModelMetadata(modelName string) *ModelMetadata {
 	modelMetadataMutex.RLock()
 	defer modelMetadataMutex.RUnlock()
+	if override, ok := modelMetadataOverrides[modelName]; ok {
+		return &override
+	}
+	if entry, ok := upstream_catalog.Get(modelName); ok {
+		meta := modelMetadataMap[modelName]
+		if entry.ContextWindow > 0 {
+			meta.ContextWindow = entry.ContextWindow
+		}
+		if entry.MaxOutputTokens > 0 {
+			meta.MaxOutputTokens = entry.MaxOutputTokens
+		}
+		if entry.VisionSupported != nil {
+			meta.VisionSupported = entry.VisionSupported
+		}
+		return &meta
+	}
 	if m, ok := modelMetadataMap[modelName]; ok {
 		return &m
 	}
@@ -279,6 +297,7 @@ func UpdateModelMetadataByJSONString(jsonStr string) error {
 	modelMetadataMutex.Lock()
 	defer modelMetadataMutex.Unlock()
 	modelMetadataMap = mergeModelMetadata(overrides)
+	modelMetadataOverrides = overrides
 	return nil
 }
 

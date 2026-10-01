@@ -16,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/QuantumNous/new-api/setting/upstream_catalog"
 	"gorm.io/gorm"
 )
 
@@ -219,6 +220,10 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if key == upstream_catalog.OptionKey {
+		_, err := upstream_catalog.Decode(value)
+		return err
+	}
 	if key == operation_setting.ToolPriceOptionKey {
 		return operation_setting.ValidateToolPricesJSON(value)
 	}
@@ -585,6 +590,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = billing_setting.UpdateChannelLedgersByJSONString(value)
 	case "ModelMetadata":
 		err = model_setting.UpdateModelMetadataByJSONString(value)
+	case upstream_catalog.OptionKey:
+		err = upstream_catalog.Update(value)
 	case "ModelRatio":
 		err = ratio_setting.UpdateModelRatioByJSONString(value)
 	case "GroupRatio":
