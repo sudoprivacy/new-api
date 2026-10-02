@@ -51,26 +51,56 @@ func TestSub2apiChargeSourceAsksForTheSameWindow(t *testing.T) {
 	assert.Equal(t, "secret-key", got.apiKey)
 }
 
-func TestSub2apiChargeSourceReadsEveryPage(t *testing.T) {
+func TestSub2apiChargeSourceReadsEveryPageAcrossKeyRotation(t *testing.T) {
 	pages := map[string]string{
 		"1": fmt.Sprintf(`{"code":0,"data":{"items":[%s],"total":%d,"pages":2}}`,
 			pageItems(1, channelLedgerPageSize), channelLedgerPageSize+1),
 		"2": `{"code":0,"data":{"items":[{"request_id":"r-last","api_key_id":12,"actual_cost":0.5}],"total":101,"pages":2}}`,
 	}
+	var requested []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.URL.Query().Get("api_key_id")+"/"+r.URL.Query().Get("page"))
+		if r.URL.Query().Get("api_key_id") == "11" {
+			_, _ = w.Write([]byte(`{"code":0,"data":{"items":[{"request_id":"r-previous-key","api_key_id":11,"actual_cost":0.25}],"total":1,"pages":1}}`))
+			return
+		}
 		body, ok := pages[r.URL.Query().Get("page")]
 		require.True(t, ok, "unexpected page %q", r.URL.Query().Get("page"))
 		_, _ = w.Write([]byte(body))
 	}))
 	defer server.Close()
 
-	source := NewSub2apiChargeSource(billing_setting.ChannelLedger{BaseURL: server.URL, AdminKey: "secret-key", APIKeyID: 12})
+	source := NewSub2apiChargeSource(billing_setting.ChannelLedger{BaseURL: server.URL, AdminKey: "secret-key", APIKeyID: 12, PreviousAPIKeyIDs: []int64{11}})
 	charges, err := source.ChargesInWindow(context.Background(), day(t, "2026-09-01"), day(t, "2026-09-02"))
 	require.NoError(t, err)
 
-	require.Len(t, charges, channelLedgerPageSize+1)
-	assert.Equal(t, "r-last", charges[len(charges)-1].RequestId)
-	assert.InDelta(t, 0.5, charges[len(charges)-1].CostUSD, 1e-9)
+	require.Len(t, charges, channelLedgerPageSize+2)
+	assert.Equal(t, []string{"12/1", "12/2", "11/1"}, requested)
+	assert.Equal(t, "r-last", charges[channelLedgerPageSize].RequestId)
+	assert.InDelta(t, 0.5, charges[channelLedgerPageSize].CostUSD, 1e-9)
+	assert.Equal(t, "r-previous-key", charges[len(charges)-1].RequestId)
+	assert.InDelta(t, 0.25, charges[len(charges)-1].CostUSD, 1e-9)
+}
+
+func TestSub2apiChargeSourceRejectsIncompleteRotationHistory(t *testing.T) {
+	for _, crossKeyRow := range []bool{false, true} {
+		t.Run(fmt.Sprintf("cross-key-row=%v", crossKeyRow), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Get("api_key_id") == "11" && !crossKeyRow {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				// Returning key 12 for the key 11 query is invalid even though
+				// both keys belong to this channel: it would count the row twice.
+				_, _ = w.Write([]byte(`{"code":0,"data":{"items":[{"request_id":"current","api_key_id":12,"actual_cost":1}],"pages":1}}`))
+			}))
+			defer server.Close()
+			source := NewSub2apiChargeSource(billing_setting.ChannelLedger{BaseURL: server.URL, AdminKey: "secret", APIKeyID: 12, PreviousAPIKeyIDs: []int64{11}})
+			rows, err := source.ChargesInWindow(context.Background(), day(t, "2026-10-01"), day(t, "2026-10-02"))
+			require.Error(t, err)
+			assert.Nil(t, rows, "partial history must not become a reconciliation report")
+		})
+	}
 }
 
 // Rows the channel recorded under an id of its own cannot be joined to anything,

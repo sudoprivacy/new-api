@@ -5,6 +5,7 @@ package billing_setting
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -28,6 +29,9 @@ type ChannelLedger struct {
 	APIKeyID int64 `json:"api_key_id"`
 	// StartAt excludes history from before billing IDs were captured (Unix seconds).
 	StartAt int64 `json:"start_at,omitempty"`
+	// PreviousAPIKeyIDs retains the billing history of revoked channel keys.
+	// On rotation, move APIKeyID here and set APIKeyID to the replacement key.
+	PreviousAPIKeyIDs []int64 `json:"previous_api_key_ids,omitempty"`
 }
 
 var (
@@ -40,6 +44,7 @@ func GetChannelLedger(channelId int) (ChannelLedger, bool) {
 	channelLedgersMutex.RLock()
 	defer channelLedgersMutex.RUnlock()
 	ledger, ok := channelLedgers[channelId]
+	ledger.PreviousAPIKeyIDs = slices.Clone(ledger.PreviousAPIKeyIDs)
 	return ledger, ok
 }
 
@@ -61,6 +66,7 @@ func GetChannelLedgers() map[int]ChannelLedger {
 	defer channelLedgersMutex.RUnlock()
 	result := make(map[int]ChannelLedger, len(channelLedgers))
 	for id, ledger := range channelLedgers {
+		ledger.PreviousAPIKeyIDs = slices.Clone(ledger.PreviousAPIKeyIDs)
 		result[id] = ledger
 	}
 	return result
@@ -74,7 +80,23 @@ func (ledger ChannelLedger) Validate() error {
 	if strings.TrimSpace(ledger.AdminKey) == "" || ledger.APIKeyID <= 0 || ledger.StartAt < 0 {
 		return fmt.Errorf("ledger requires admin_key and a positive api_key_id")
 	}
+	if len(ledger.PreviousAPIKeyIDs) > 32 {
+		return fmt.Errorf("ledger supports at most 32 previous API keys")
+	}
+	seen := map[int64]bool{ledger.APIKeyID: true}
+	for _, id := range ledger.PreviousAPIKeyIDs {
+		if id <= 0 || seen[id] {
+			return fmt.Errorf("ledger API key ids must be positive and distinct")
+		}
+		seen[id] = true
+	}
 	return nil
+}
+
+// APIKeyIDs includes current and historical credentials without sharing storage
+// with the configuration snapshot.
+func (ledger ChannelLedger) APIKeyIDs() []int64 {
+	return append([]int64{ledger.APIKeyID}, ledger.PreviousAPIKeyIDs...)
 }
 
 func parseChannelLedgers(jsonStr string) (map[int]ChannelLedger, error) {
@@ -93,11 +115,13 @@ func parseChannelLedgers(jsonStr string) (map[int]ChannelLedger, error) {
 			return nil, fmt.Errorf("channel %d: %w", id, err)
 		}
 		ledger.BaseURL = strings.TrimRight(ledger.BaseURL, "/")
-		scope := fmt.Sprintf("%s/%d", ledger.BaseURL, ledger.APIKeyID)
-		if seen[scope] {
-			return nil, fmt.Errorf("each upstream API key must belong to only one reconciled channel")
+		for _, keyID := range ledger.APIKeyIDs() {
+			scope := fmt.Sprintf("%s/%d", ledger.BaseURL, keyID)
+			if seen[scope] {
+				return nil, fmt.Errorf("each upstream API key must belong to only one reconciled channel")
+			}
+			seen[scope] = true
 		}
-		seen[scope] = true
 		ledgers[id] = ledger
 	}
 	return ledgers, nil
