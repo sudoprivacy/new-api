@@ -93,15 +93,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
-			case types.RelayFormatClaude:
-				c.JSON(newAPIError.StatusCode, gin.H{
-					"type":  "error",
-					"error": newAPIError.ToClaudeError(),
-				})
 			default:
-				c.JSON(newAPIError.StatusCode, gin.H{
-					"error": newAPIError.ToOpenAIError(),
-				})
+				writeRelayError(c, relayFormat, newAPIError)
 			}
 		}
 	}()
@@ -252,6 +245,37 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			perfmetrics.RecordRelaySample(relayInfo, false, 0)
 		})
 	}
+}
+
+// A keepalive can commit the SSE response before upstream headers arrive.
+// Once committed, a plain JSON error would be ignored by SSE clients.
+func writeRelayError(c *gin.Context, format types.RelayFormat, apiError *types.NewAPIError) {
+	if c.Request.Context().Err() != nil {
+		return
+	}
+	payload := gin.H{"error": apiError.ToOpenAIError()}
+	if format == types.RelayFormatClaude {
+		payload = gin.H{"type": "error", "error": apiError.ToClaudeError()}
+	}
+	if c.Writer.Written() && strings.HasPrefix(c.Writer.Header().Get("Content-Type"), "text/event-stream") {
+		helper.ExtendWriteDeadline(c)
+		switch format {
+		case types.RelayFormatClaude:
+			c.SSEvent("error", payload)
+		case types.RelayFormatOpenAIResponses:
+			err := apiError.ToOpenAIError()
+			c.SSEvent("error", gin.H{"type": "error", "code": err.Code, "message": err.Message, "param": err.Param})
+		default:
+			_ = helper.ObjectData(c, payload)
+		}
+		_ = helper.FlushWriter(c)
+		return
+	}
+	// SetEventStreamHeaders may have run without writing the first heartbeat.
+	// Preserve the upstream HTTP status and JSON error in that case.
+	c.Header("Content-Type", "application/json; charset=utf-8")
+	c.Writer.Header().Del("Transfer-Encoding")
+	c.JSON(apiError.StatusCode, payload)
 }
 
 var upgrader = websocket.Upgrader{
