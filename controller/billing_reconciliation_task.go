@@ -5,6 +5,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"math"
+	"slices"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -78,8 +80,22 @@ func billingReconciliationTaskResult(date string, report service.ReconciliationR
 	for _, anomaly := range report.Anomalies {
 		counts[anomaly.Kind]++
 	}
-	// The API can reproduce the full report; bound the persisted task result.
-	samples := report.Anomalies
+	// Keep the largest monetary differences visible in the bounded task report.
+	// Sorting by request ID alone can fill all 100 slots with sub-quota rounding
+	// differences and omit a real loss. Preserve every anomaly and total in the
+	// full report, and leave its deterministic request order unchanged.
+	samples := slices.Clone(report.Anomalies)
+	slices.SortStableFunc(samples, func(a, b service.RequestAnomaly) int {
+		aGap := math.Abs(a.CostUSD - a.RevenueUSD)
+		bGap := math.Abs(b.CostUSD - b.RevenueUSD)
+		if aGap > bGap {
+			return -1
+		}
+		if aGap < bGap {
+			return 1
+		}
+		return 0
+	})
 	if len(samples) > 100 {
 		samples = samples[:100]
 	}
