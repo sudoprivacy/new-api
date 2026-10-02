@@ -17,11 +17,12 @@ type OpenAIModels struct {
 	// an absent field means unknown, while an explicit false means the model is
 	// documented as text-only, and collapsing the two would present a text-only
 	// model as vision-capable.
-	ContextWindow     int   `json:"context_window,omitempty"`
-	MaxOutputTokens   int   `json:"max_output_tokens,omitempty"`
-	VisionSupported   *bool `json:"vision_supported,omitempty"`
-	ImageMaxBytes     int   `json:"image_max_bytes,omitempty"`
-	ImageMaxDimension int   `json:"image_max_dimension,omitempty"`
+	ContextWindow        int   `json:"context_window,omitempty"`
+	MaxOutputTokens      int   `json:"max_output_tokens,omitempty"`
+	VisionSupported      *bool `json:"vision_supported,omitempty"`
+	ImageMaxBytes        int   `json:"image_max_bytes,omitempty"`
+	ImageMaxDimension    int   `json:"image_max_dimension,omitempty"`
+	ToolCallingSupported *bool `json:"tool_calling_supported,omitempty"`
 }
 
 type AnthropicModel struct {
@@ -42,6 +43,7 @@ type AnthropicModel struct {
 	VisionSupported        *bool                `json:"vision_supported,omitempty"`
 	ImageMaxBytes          int                  `json:"image_max_bytes,omitempty"`
 	ImageMaxDimension      int                  `json:"image_max_dimension,omitempty"`
+	ToolCallingSupported   *bool                `json:"tool_calling_supported,omitempty"`
 }
 
 // NewAnthropicModel projects an enriched OpenAIModels onto the Anthropic shape.
@@ -63,6 +65,7 @@ func NewAnthropicModel(m OpenAIModels, createdAt string) AnthropicModel {
 		VisionSupported:        m.VisionSupported,
 		ImageMaxBytes:          m.ImageMaxBytes,
 		ImageMaxDimension:      m.ImageMaxDimension,
+		ToolCallingSupported:   m.ToolCallingSupported,
 	}
 }
 
@@ -80,11 +83,13 @@ type GeminiModel struct {
 	MaxTemperature             interface{}   `json:"maxTemperature"`
 	TopP                       interface{}   `json:"topP"`
 	TopK                       interface{}   `json:"topK"`
+	ToolCallingSupported       *bool         `json:"tool_calling_supported,omitempty"`
 }
 
 // NewGeminiModel projects an enriched OpenAIModels onto the Gemini shape.
 //
-// Only the two token limits are carried. Their names line up one-to-one with
+// The two token limits and the gateway's tool capability extension are carried.
+// The limit names line up one-to-one with
 // what the registry knows, so the mapping is a rename, not an interpretation.
 // `supportedGenerationMethods` is deliberately left nil: translating this
 // gateway's endpoint types into Gemini method names would be inventing a
@@ -97,8 +102,9 @@ type GeminiModel struct {
 // no input.
 func NewGeminiModel(m OpenAIModels) GeminiModel {
 	g := GeminiModel{
-		Name:        m.Id,
-		DisplayName: m.Id,
+		Name:                 m.Id,
+		DisplayName:          m.Id,
+		ToolCallingSupported: m.ToolCallingSupported,
 	}
 	if m.ContextWindow > 0 {
 		g.InputTokenLimit = m.ContextWindow

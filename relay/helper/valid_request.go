@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
@@ -56,6 +57,10 @@ func GetAndValidateRequest(c *gin.Context, format types.RelayFormat) (request dt
 		request, err = GetAndValidTypesafeRequest(c)
 	default:
 		return nil, fmt.Errorf("unsupported relay format: %s", format)
+	}
+	// sudoapi: Enforce documented deployment tool capabilities before relay billing.
+	if err == nil {
+		err = validateModelToolCapability(common.GetContextKeyString(c, constant.ContextKeyOriginalModel), request)
 	}
 	return request, err
 }
