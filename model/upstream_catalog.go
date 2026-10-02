@@ -66,6 +66,9 @@ func MergeUpstreamCatalog(channelID int, incoming map[string]upstream_catalog.En
 			if entry.VisionSupported == nil {
 				entry.VisionSupported = previous.VisionSupported
 			}
+			if entry.ToolCallingSupported == nil {
+				entry.ToolCallingSupported = previous.ToolCallingSupported
+			}
 			entries[name] = entry
 		}
 		body, err := common.Marshal(entries)

@@ -33,10 +33,12 @@ func TestTrustedCatalogUnseenModelReachesListingAndBilling(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "test-key", r.Header.Get("x-api-key"))
 		price := ""
+		toolSupport := `,"tool_calling_supported":false`
 		if priced {
 			price = `,"reference_pricing":{"currency":"USD","unit":"per_million_tokens","input":2,"output":10,"cache_read":0.2,"cache_write_5m":2.5,"cache_write_1h":4}`
+			toolSupport = "" // An incomplete refresh must retain the explicit false.
 		}
-		_, _ = w.Write([]byte(`{"data":[{"id":"claude-unseen-2040","max_input_tokens":1234567,"max_tokens":98765,"capabilities":{"image_input":{"supported":false}}` + price + `}]}`))
+		_, _ = w.Write([]byte(`{"data":[{"id":"claude-unseen-2040","max_input_tokens":1234567,"max_tokens":98765,"capabilities":{"image_input":{"supported":false}}` + price + toolSupport + `}]}`))
 	}))
 	defer server.Close()
 	base := server.URL
@@ -73,6 +75,15 @@ func TestTrustedCatalogUnseenModelReachesListingAndBilling(t *testing.T) {
 	models := list(false)
 	require.Len(t, models, 1)
 	require.Equal(t, "claude-unseen-2040", models[0].Id)
+	require.NotNil(t, models[0].ToolCallingSupported)
+	require.False(t, *models[0].ToolCallingSupported)
+	for _, shape := range []any{dto.NewAnthropicModel(models[0], "2026-10-02T00:00:00Z"), dto.NewGeminiModel(models[0])} {
+		body, err := common.Marshal(shape)
+		require.NoError(t, err)
+		var decoded map[string]any
+		require.NoError(t, common.Unmarshal(body, &decoded))
+		require.Equal(t, false, decoded["tool_calling_supported"])
+	}
 	meta := model_setting.GetModelMetadata("claude-unseen-2040")
 	require.EqualValues(t, 1234567, meta.ContextWindow)
 	require.EqualValues(t, 98765, meta.MaxOutputTokens)

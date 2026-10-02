@@ -33,6 +33,8 @@ type ModelMetadata struct {
 	VisionSupported   *bool `json:"vision_supported,omitempty"`
 	ImageMaxBytes     int   `json:"image_max_bytes,omitempty"`
 	ImageMaxDimension int   `json:"image_max_dimension,omitempty"`
+	// Nil is unknown. This is the deployed route's capability, not a model-name heuristic.
+	ToolCallingSupported *bool `json:"tool_calling_supported,omitempty"`
 }
 
 // Documented per-image byte limits, sourced from each provider's API docs.
@@ -266,6 +268,9 @@ func GetModelMetadata(modelName string) *ModelMetadata {
 		}
 		if entry.VisionSupported != nil {
 			meta.VisionSupported = entry.VisionSupported
+		}
+		if entry.ToolCallingSupported != nil {
+			meta.ToolCallingSupported = entry.ToolCallingSupported
 		}
 		return &meta
 	}

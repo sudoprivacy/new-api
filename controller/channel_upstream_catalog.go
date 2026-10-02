@@ -72,7 +72,8 @@ func fetchTrustedChannelCatalog(channel *model.Channel) ([]string, map[string]up
 						Supported *bool `json:"supported"`
 					} `json:"image_input"`
 				} `json:"capabilities"`
-				Pricing *upstream_catalog.Pricing `json:"reference_pricing"`
+				Pricing              *upstream_catalog.Pricing `json:"reference_pricing"`
+				ToolCallingSupported *bool                     `json:"tool_calling_supported"`
 			} `json:"data"`
 			HasMore bool   `json:"has_more"`
 			LastID  string `json:"last_id"`
@@ -89,6 +90,7 @@ func fetchTrustedChannelCatalog(channel *model.Channel) ([]string, map[string]up
 			}
 			entry := upstream_catalog.Entry{ChannelID: channel.Id, ContextWindow: item.ContextWindow,
 				MaxOutputTokens: item.MaxOutputTokens, VisionSupported: item.VisionSupported, Pricing: item.Pricing}
+			entry.ToolCallingSupported = item.ToolCallingSupported
 			if item.MaxInputTokens > 0 {
 				entry.ContextWindow = item.MaxInputTokens
 			}

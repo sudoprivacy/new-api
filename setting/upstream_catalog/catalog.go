@@ -26,11 +26,12 @@ type Pricing struct {
 }
 
 type Entry struct {
-	ChannelID       int      `json:"channel_id"`
-	ContextWindow   int      `json:"context_window,omitempty"`
-	MaxOutputTokens int      `json:"max_output_tokens,omitempty"`
-	VisionSupported *bool    `json:"vision_supported,omitempty"`
-	Pricing         *Pricing `json:"reference_pricing,omitempty"`
+	ChannelID            int      `json:"channel_id"`
+	ContextWindow        int      `json:"context_window,omitempty"`
+	MaxOutputTokens      int      `json:"max_output_tokens,omitempty"`
+	VisionSupported      *bool    `json:"vision_supported,omitempty"`
+	Pricing              *Pricing `json:"reference_pricing,omitempty"`
+	ToolCallingSupported *bool    `json:"tool_calling_supported,omitempty"`
 }
 
 var catalog = struct {

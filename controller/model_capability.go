@@ -21,4 +21,5 @@ func enrichModelMetadata(m *dto.OpenAIModels) {
 	m.VisionSupported = meta.VisionSupported
 	m.ImageMaxBytes = meta.ImageMaxBytes
 	m.ImageMaxDimension = meta.ImageMaxDimension
+	m.ToolCallingSupported = meta.ToolCallingSupported
 }
