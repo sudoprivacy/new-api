@@ -145,6 +145,18 @@ func (s *sub2apiChargeSource) ChargesInWindow(ctx context.Context, start, end ti
 	if err := s.ledger.Validate(); err != nil {
 		return nil, err
 	}
+	var charges []ChannelCharge
+	for _, keyID := range s.ledger.APIKeyIDs() {
+		rows, err := s.chargesForAPIKey(ctx, start, end, keyID)
+		if err != nil {
+			return nil, err
+		}
+		charges = append(charges, rows...)
+	}
+	return charges, nil
+}
+
+func (s *sub2apiChargeSource) chargesForAPIKey(ctx context.Context, start, end time.Time, keyID int64) ([]ChannelCharge, error) {
 	// The channel's end_date is inclusive — its handler adds a day to build its
 	// own half-open range — so the last included day is the one before our end.
 	query := url.Values{}
@@ -152,7 +164,7 @@ func (s *sub2apiChargeSource) ChargesInWindow(ctx context.Context, start, end ti
 	query.Set("end_date", end.AddDate(0, 0, -1).Format(time.DateOnly))
 	query.Set("timezone", start.Location().String())
 	query.Set("page_size", strconv.Itoa(channelLedgerPageSize))
-	query.Set("api_key_id", strconv.FormatInt(s.ledger.APIKeyID, 10))
+	query.Set("api_key_id", strconv.FormatInt(keyID, 10))
 	query.Set("exact_total", "true")
 	query.Set("sort_by", "id")
 	query.Set("sort_order", "asc")
@@ -165,7 +177,7 @@ func (s *sub2apiChargeSource) ChargesInWindow(ctx context.Context, start, end ti
 			return nil, err
 		}
 		for _, item := range decoded.Data.Items {
-			if item.APIKeyID == nil || *item.APIKeyID != s.ledger.APIKeyID {
+			if item.APIKeyID == nil || *item.APIKeyID != keyID {
 				return nil, fmt.Errorf("channel ledger returned a row outside the configured API key scope")
 			}
 			if item.ActualCost == nil {
