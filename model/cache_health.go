@@ -68,7 +68,7 @@ func GetChannelCacheHealth(startTimestamp, endTimestamp int64, channelId int, mo
 		return nil, false, fmt.Errorf("start_timestamp must be before end_timestamp")
 	}
 
-	tx := DB.Model(&Log{}).
+	tx := LOG_DB.Model(&Log{}).
 		Select("channel_id, created_at, model_name, prompt_tokens, quota, other").
 		Where("type = ?", LogTypeConsume).
 		Where("created_at BETWEEN ? AND ?", startTimestamp, endTimestamp)
