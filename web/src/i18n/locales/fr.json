@@ -5316,6 +5316,17 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Prompt cache health": "Prompt cache health",
+    "Claude requests in the last 24 hours, grouped by channel and server-local hour. Reuse is cached reads divided by cached reads plus writes.": "Claude requests in the last 24 hours, grouped by channel and server-local hour. Reuse is cached reads divided by cached reads plus writes.",
+    "Unable to load prompt cache health. Please retry.": "Unable to load prompt cache health. Please retry.",
+    "This report is incomplete. Reuse percentages are hidden because the row limit was reached.": "This report is incomplete. Reuse percentages are hidden because the row limit was reached.",
+    "No Claude requests in this time window.": "No Claude requests in this time window.",
+    "Cache read tokens": "Cache read tokens",
+    "Cache write tokens": "Cache write tokens",
+    "Cache reuse": "Cache reuse",
+    "Requests without cache": "Requests without cache",
+    "No cache usage": "No cache usage",
+    "Incomplete report": "Incomplete report"
   }
 }

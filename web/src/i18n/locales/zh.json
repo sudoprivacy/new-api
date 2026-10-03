@@ -5320,6 +5320,17 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Prompt cache health": "提示词缓存健康度",
+    "Claude requests in the last 24 hours, grouped by channel and server-local hour. Reuse is cached reads divided by cached reads plus writes.": "过去 24 小时的 Claude 请求，按渠道和服务器本地小时分组。复用率为缓存读取量除以缓存读取量与写入量之和。",
+    "Unable to load prompt cache health. Please retry.": "无法加载提示词缓存健康度，请重试。",
+    "This report is incomplete. Reuse percentages are hidden because the row limit was reached.": "报告不完整：已达到查询行数上限，复用率已隐藏。",
+    "No Claude requests in this time window.": "此时间范围内没有 Claude 请求。",
+    "Cache read tokens": "缓存读取 Token",
+    "Cache write tokens": "缓存写入 Token",
+    "Cache reuse": "缓存复用率",
+    "Requests without cache": "无缓存用量的请求",
+    "No cache usage": "无缓存用量",
+    "Incomplete report": "报告不完整"
   }
 }
