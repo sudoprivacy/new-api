@@ -26,8 +26,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
+import { CacheHealthDialog } from './cache-health-dialog'
 import { CommonLogsStats } from './common-logs-stats'
-import { useUsageLogsContext } from './usage-logs-provider'
+import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 /**
  * Page-header actions for the Common Logs view: live usage stats plus a
@@ -39,10 +40,12 @@ import { useUsageLogsContext } from './usage-logs-provider'
 export function CommonLogsHeaderActions() {
   const { t } = useTranslation()
   const { sensitiveVisible, setSensitiveVisible } = useUsageLogsContext()
+  const { isAdminView } = useLogsViewScope()
 
   return (
     <div className='flex flex-wrap items-center gap-2'>
       <CommonLogsStats />
+      {isAdminView && <CacheHealthDialog />}
       <Tooltip>
         <TooltipTrigger
           render={
