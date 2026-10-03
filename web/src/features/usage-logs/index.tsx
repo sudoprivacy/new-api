@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
 import { useSidebarConfig } from '@/hooks/use-sidebar-config'
 
+import { CacheHealthDialog } from './components/cache-health-dialog'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
   type LogsViewScope,
@@ -130,6 +131,9 @@ function UsageLogsContent() {
         </SectionPageLayout.Title>
         {canManageScope && (
           <SectionPageLayout.Actions>
+            {activeCategory === 'common' && viewScope === 'all' && (
+              <CacheHealthDialog />
+            )}
             <Tabs value={viewScope} onValueChange={handleViewScopeChange}>
               <TabsList>
                 <TabsTrigger value='all'>{t('All')}</TabsTrigger>
