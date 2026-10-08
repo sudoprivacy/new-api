@@ -58,6 +58,10 @@ var accessTokenExemptRoutes = []string{
 	// sudoapi: Fuiou payment.
 	"POST /api/fuiou/callback",
 
+	// sudoapi: API for sudowork
+	"GET /api/specific_pricing",
+	"GET /api/specific_image_pricing",
+
 	// Payment callbacks.
 	"POST /api/stripe/webhook",
 	"POST /api/creem/webhook",
