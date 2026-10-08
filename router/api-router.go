@@ -155,6 +155,9 @@ func SetApiRouter(router *gin.Engine) {
 
 				// sudoapi: API for sudowork
 				adminRoute.PUT("/quota", controller.UpdateUserQuota)
+				adminRoute.GET("/tokens", controller.GetUserTokens)
+				adminRoute.PUT("/token/status", controller.UpdateUserTokenStatus)
+				adminRoute.PUT("/token/quota", controller.UpdateUserTokenQuota)
 
 				// Admin 2FA routes
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
