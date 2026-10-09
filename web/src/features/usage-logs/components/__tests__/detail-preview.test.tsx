@@ -377,6 +377,7 @@ test.each(['missing schema', 'unsupported expression', 'unknown tier'])(
       expr_b64: Buffer.from(expression).toString('base64'),
       matched_tier: scenario === 'unknown tier' ? 'old' : 'music',
     })
-    expect(preview.textContent).toBe('Dynamic Pricing · No matching results')
+    // sudoapi: Task log details.
+    expect(preview.textContent).toBe(scenario === 'unknown tier' ? 'old' : 'music')
   }
 )

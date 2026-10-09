@@ -179,6 +179,12 @@ function BillingBreakdown(props: {
   const fmtPrice = (usd: number) => formatBillingCurrencyFromUSD(usd, priceOpts)
   const baseInputUSD = other.model_ratio != null ? other.model_ratio * 2.0 : 0
 
+  // sudoapi: Task log details.
+  if (other.task_id) {
+    // 计费详情显示 task id
+    rows.push({ label: t('Task ID'), value: other.task_id })
+  }
+
   if (isTieredExpr) {
     rows.push({
       label: t('Billing Mode'),
@@ -363,7 +369,9 @@ function BillingBreakdown(props: {
       )}
       <DetailRow
         label={t('Total Cost')}
-        value={formatLogQuota(log.quota)}
+        // sudoapi: Task log details.
+        // 退款时显示实付金额
+        value={formatLogQuota(other.actual_quota ?? log.quota)}
         mono
       />
     </DetailSection>
@@ -487,7 +495,6 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const isManage = props.log.type === 3
   const isSubscription = other?.billing_source === 'subscription'
   const isTieredBilling =
-    isConsume &&
     !isViolation &&
     other?.billing_mode === 'tiered_expr' &&
     !!other?.expr_b64
@@ -880,6 +887,44 @@ export function DetailsDialog(props: DetailsDialogProps) {
             {other.reason && (
               <DetailRow label={t('Reason')} value={other.reason} />
             )}
+            {/*sudoapi: Task log details.*/}
+            {/*任务退款详情*/}
+            {other.pre_consumed_quota && (
+              // 预扣费
+              <DetailRow label={t('Pre-consumed')} value={formatLogQuota(other.pre_consumed_quota)} />
+            )}
+            {other.actual_quota && (
+              // 实际扣费
+              <DetailRow label={t('Actual Amount')} value={formatLogQuota(other.actual_quota)} />
+            )}
+            {props.log.quota && (
+              // 退款金额
+              <DetailRow label={t('Refund')} value={formatLogQuota(props.log.quota)} />
+            )}
+          </DetailSection>
+        )}
+
+        {/*sudoapi: Task log details.*/}
+        {/*任务加收费用详情*/}
+        {isConsume && other && (other.task_id || other.reason) && (other.actual_quota) && (
+          <DetailSection label={t('Additional charge', 'Detail')}>
+            {other.task_id && (
+              // 任务ID
+              <DetailRow label={t('Task ID')} value={other.task_id} mono />
+            )}
+            {other.pre_consumed_quota && (
+              // 预扣费
+              <DetailRow label={t('Pre-consumed')} value={formatLogQuota(other.pre_consumed_quota)} />
+            )}
+            {other.actual_quota && (
+              // 实际应扣费
+              <DetailRow label={t('Total consumed')} value={formatLogQuota(other.actual_quota)} />
+            )}
+            {/* // 补扣费用 */}
+            <DetailRow label={t('Additional charge')} value={formatLogQuota(props.log.quota)}/>
+            {other.reason && (
+              <DetailRow label={t('Reason')} value={other.reason} />
+            )}
           </DetailSection>
         )}
 
@@ -1163,6 +1208,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
             other={other}
             isAdmin={props.isAdmin}
           />
+        )}
+
+        {/*sudoapi: Task log details.*/}
+        {/*任务退款时计费详情*/}
+        {isRefund && other && (other.task_id || other.reason) && (other.actual_quota) && (
+          <BillingBreakdown log={props.log} other={other} isAdmin={props.isAdmin} />
         )}
 
         {/* Tiered pricing breakdown (when billing_mode is tiered_expr) */}

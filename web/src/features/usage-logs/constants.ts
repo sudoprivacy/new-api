@@ -288,6 +288,8 @@ export const MJ_SUBMIT_RESULT_MAPPINGS: Record<string, StatusMapping> = {
  * Task action type mappings
  */
 export const TASK_ACTION_MAPPINGS: Record<string, StatusMapping> = {
+  // sudoapi: Task log details.
+  ["text_to_video"]: { label: 'Text to Video', variant: 'blue' },
   [TASK_ACTIONS.MUSIC]: { label: 'Generate Music', variant: 'neutral' },
   [TASK_ACTIONS.LYRICS]: { label: 'Generate Lyrics', variant: 'pink' },
   [TASK_ACTIONS.GENERATE]: { label: 'Image to Video', variant: 'blue' },

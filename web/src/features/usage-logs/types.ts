@@ -270,6 +270,9 @@ export interface LogOtherData {
   subscription_consumed?: number
   subscription_remain?: number
   subscription_total?: number
+  // sudoapi: Task log details.
+  pre_consumed_quota?: number
+  actual_quota?: number
 }
 
 /**

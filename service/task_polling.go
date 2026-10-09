@@ -686,7 +686,11 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 		}
 		bc.TieredSnapshot.UsageFacts = usageFacts
 		bc.TieredSnapshot.EstimatedTier = result.MatchedTier
-		RecalculateTaskQuota(ctx, task, result.ActualQuotaAfterGroup, "任务用量表达式结算", result.Clamp)
+
+		// sudoapi: Task log details.
+		contents := lo.MapToSlice(usageFacts, func(k string, v any) string { return fmt.Sprintf("%s: %v", k, v) })
+		reason := fmt.Sprintf("任务用量表达式结算, 计算参数：%s", strings.Join(contents, ", "))
+		RecalculateTaskQuota(ctx, task, result.ActualQuotaAfterGroup, reason, result.Clamp)
 		return true
 	}
 	// 按次计费的成功任务保持预扣；失败任务由调用方全额退款。

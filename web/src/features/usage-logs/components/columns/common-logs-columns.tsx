@@ -206,6 +206,8 @@ function buildTypeDetailSegments(
       segments.push({
         text: `${tier.label || t('Default')} · ${prices.join(' · ')}`,
       })
+    } else if (other.matched_tier) { // sudoapi: Task log details.
+      segments.push({ text: other.matched_tier })
     } else {
       segments.push({
         text: `${t('Dynamic Pricing')} · ${t('No matching results')}`,
@@ -262,6 +264,8 @@ function buildTypeDetailSegments(
           muted: true,
         })
       }
+    } else if (other.matched_tier) { // sudoapi: Task log details.
+      segments.push({ text: other.matched_tier })
     } else {
       segments.push({
         text: `${t('Dynamic Pricing')} · ${t('No matching results')}`,
