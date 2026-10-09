@@ -145,6 +145,10 @@ func writeAccountStatusError(c *gin.Context, status int, key string) {
 // operation after the caller has already authorized the operator against the
 // managed user. context is one of the service.AdminUser*Context structs.
 func requireAdminUserProof(c *gin.Context, scope string, context any) *model.AuthFlowAuthorization {
+	// sudoapi: Skip admin PAT security proof.
+	if c.GetBool("use_access_token") {
+		return &model.AuthFlowAuthorization{Method: "access_token"}
+	}
 	payload, err := common.Marshal(context)
 	if err != nil {
 		_ = c.Error(err)
