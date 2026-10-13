@@ -1,0 +1,95 @@
+# sudoapi: Versioned SudoRouter image archives for sudostack.
+name: SudoRouter release archive
+
+on:
+  push:
+    tags: ['sudorouter-v*']
+  pull_request:
+    paths: ['.github/workflows/sudorouter-release.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Set the immutable archive version
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/sudorouter-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#sudorouter-v}"
+          else
+            VERSION="0.0.0-ci.${GITHUB_SHA:0:12}"
+          fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]
+          echo "$VERSION" > VERSION
+          echo "ROUTER_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Build the repository's Linux amd64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          platforms: linux/amd64
+          tags: sudoprivacy/new-api:${{ env.ROUTER_VERSION }}-amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Check the packaged application and version
+        run: |
+          set -euo pipefail
+          docker run -d --name router-test -p 127.0.0.1:13000:3000 "sudoprivacy/new-api:$ROUTER_VERSION-amd64"
+          trap 'docker rm -f router-test >/dev/null' EXIT
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:13000/api/status > /tmp/router-status.json; then break; fi
+            sleep 2
+          done
+          python3 - <<'PY'
+          import json, os
+          status = json.load(open('/tmp/router-status.json'))
+          assert status['success'] is True
+          assert status['data']['version'] == os.environ['ROUTER_VERSION'], status['data'].get('version')
+          PY
+          curl -fsS http://127.0.0.1:13000/ > /tmp/router-index.html
+          test -s /tmp/router-index.html
+      - name: Export the checksummed image archive
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          docker save "sudoprivacy/new-api:$ROUTER_VERSION-amd64" | gzip -1n > "dist/sudorouter-$ROUTER_VERSION-linux-amd64.tar.gz"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('dist/source.json').write_text(json.dumps({'repository': os.environ['GITHUB_REPOSITORY'], 'commit': os.environ['GITHUB_SHA'], 'version': os.environ['ROUTER_VERSION'], 'architecture': 'amd64'}, indent=2) + '\n')
+          PY
+          cd dist
+          sha256sum *.tar.gz source.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sudorouter-release
+          path: dist/*
+          compression-level: 0
+          retention-days: 7
+  publish:
+    if: startsWith(github.ref, 'refs/tags/sudorouter-v')
+    needs: image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sudorouter-release
+          path: dist
+      - name: Publish once without overwriting assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" ./* --verify-tag --prerelease \
+            --title "$GITHUB_REF_NAME" --notes 'SudoRouter (new-api) Linux amd64 image archive, built from this tag for versioned sudostack deployment. See source.json and SHA256SUMS.'
