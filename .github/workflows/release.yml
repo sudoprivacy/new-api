@@ -11,6 +11,7 @@ on:
   push:
     tags:
       - '*'
+      - '!sudorouter-v*'
       - '!*-alpha*'
 
 jobs:
