@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/openrouter"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
@@ -174,7 +175,8 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	}
 
 	// sudoapi: Quota in chat completions usage for sudowork.
-	if containStreamUsage {
+	isSudoWork := channel.IsSudoworkRequest(c)
+	if isSudoWork && containStreamUsage {
 		usage.Quota = service.CalculateTextQuota(c, info, usage)
 		if rst, err := sjson.Set(lastStreamData, "usage.quota", usage.Quota); err == nil {
 			lastStreamData = rst
@@ -192,7 +194,9 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 		usage.CompletionTokens += toolCount * 7
 
 		// sudoapi: Quota in chat completions usage for sudowork.
-		usage.Quota = service.CalculateTextQuota(c, info, usage)
+		if isSudoWork {
+			usage.Quota = service.CalculateTextQuota(c, info, usage)
+		}
 	}
 
 	applyUsagePostProcessing(info, usage, common.StringToByteSlice(lastStreamData))
@@ -303,10 +307,12 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 	applyUsagePostProcessing(info, &simpleResponse.Usage, responseBody)
 
 	// sudoapi: Quota in chat completions usage for sudowork.
-	simpleResponse.Usage.Quota = service.CalculateTextQuota(c, info, &simpleResponse.Usage)
-	if !usageModified && !forceFormat {
-		if rst, err := sjson.SetBytes(responseBody, "usage.quota", simpleResponse.Usage.Quota); err == nil {
-			responseBody = rst
+	if channel.IsSudoworkRequest(c) {
+		simpleResponse.Usage.Quota = service.CalculateTextQuota(c, info, &simpleResponse.Usage)
+		if !usageModified && !forceFormat {
+			if rst, err := sjson.SetBytes(responseBody, "usage.quota", simpleResponse.Usage.Quota); err == nil {
+				responseBody = rst
+			}
 		}
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/openai"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
@@ -299,7 +300,9 @@ func GeminiChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *
 	}
 
 	// sudoapi: Quota in chat completions usage for sudowork.
-	usage.Quota = service.CalculateTextQuota(c, info, usage)
+	if channel.IsSudoworkRequest(c) {
+		usage.Quota = service.CalculateTextQuota(c, info, usage)
+	}
 
 	response := helper.GenerateFinalUsageResponse(id, createAt, info.UpstreamModelName, *usage)
 	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo != nil && !info.ClaudeConvertInfo.Done {
@@ -366,7 +369,9 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 	usage := buildUsageFromGeminiResponse(c, info, &geminiResponse)
 
 	// sudoapi: Quota in chat completions usage for sudowork.
-	usage.Quota = service.CalculateTextQuota(c, info, &usage)
+	if channel.IsSudoworkRequest(c) {
+		usage.Quota = service.CalculateTextQuota(c, info, &usage)
+	}
 
 	fullTextResponse.Usage = usage
 

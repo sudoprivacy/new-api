@@ -602,3 +602,8 @@ func DoTaskApiRequest(a TaskAdaptor, c *gin.Context, info *common.RelayInfo, req
 	}
 	return resp, nil
 }
+
+// sudoapi: Quota in chat completions usage for sudowork.
+func IsSudoworkRequest(c *gin.Context) bool {
+	return c.GetHeader("X-Sudowork") != ""
+}

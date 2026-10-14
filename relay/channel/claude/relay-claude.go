@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/dto"
@@ -190,7 +191,9 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 			openAIUsage := buildOpenAIStyleUsageFromClaudeUsage(claudeInfo.Usage)
 
 			// sudoapi: Quota in chat completions usage for sudowork.
-			openAIUsage.Quota = service.CalculateTextQuota(c, info, &openAIUsage)
+			if channel.IsSudoworkRequest(c) {
+				openAIUsage.Quota = service.CalculateTextQuota(c, info, &openAIUsage)
+			}
 
 			response := helper.GenerateFinalUsageResponse(claudeInfo.ResponseId, claudeInfo.Created, info.UpstreamModelName, openAIUsage)
 			err := helper.ObjectData(c, response)
@@ -262,7 +265,9 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		openaiResponse.Usage = buildOpenAIStyleUsageFromClaudeUsage(claudeInfo.Usage)
 
 		// sudoapi: Quota in chat completions usage for sudowork.
-		openaiResponse.Usage.Quota = service.CalculateTextQuota(c, info, &openaiResponse.Usage)
+		if channel.IsSudoworkRequest(c) {
+			openaiResponse.Usage.Quota = service.CalculateTextQuota(c, info, &openaiResponse.Usage)
+		}
 
 		responseData, err = common.Marshal(openaiResponse)
 		if err != nil {
