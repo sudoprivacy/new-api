@@ -21,9 +21,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Both frontend and backend read VERSION in the upstream Dockerfile. Build the
+# committed source in isolation so package metadata and runtime version agree.
+CONTEXT="$STAGING/context"
+mkdir "$CONTEXT"
+git -C "$ROOT" archive "$REVISION" | tar -x -C "$CONTEXT"
+printf '%s\n' "$VERSION" > "$CONTEXT/VERSION"
 docker buildx build --platform "linux/$ARCH" --load --tag "$IMAGE" \
   --label "org.opencontainers.image.revision=$REVISION" \
-  --label "org.opencontainers.image.version=$VERSION" --file "$ROOT/Dockerfile" "$ROOT"
+  --label "org.opencontainers.image.version=$VERSION" --file "$CONTEXT/Dockerfile" "$CONTEXT"
 [ "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$IMAGE")" = "linux/$ARCH" ] \
   || { echo "Image architecture differs from linux/$ARCH" >&2; exit 1; }
 # A disposable SQLite instance verifies native startup, migrations and HTTP routing.
@@ -44,6 +50,13 @@ if [ "$READY" != 1 ]; then
   echo 'Router native HTTP smoke failed' >&2
   exit 1
 fi
+python3 - "$STAGING/status.json" "$VERSION" <<'PY'
+import json, sys
+status = json.load(open(sys.argv[1]))
+actual = status.get('data', {}).get('version')
+if actual != sys.argv[2]:
+    sys.exit(f'Router runtime version differs from release: {actual!r} != {sys.argv[2]!r}')
+PY
 ARCHIVE="sudorouter-$VERSION-linux-$ARCH.tar.gz"
 PROVENANCE="sudorouter-$VERSION-linux-$ARCH.source.json"
 docker save "$IMAGE" | gzip -1 > "$STAGING/$ARCHIVE"

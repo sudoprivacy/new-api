@@ -1,6 +1,13 @@
 # sudoapi: Native offline SudoRouter releases.
 name: SudoRouter offline release
 on:
+  pull_request:
+    branches: ['sudo/rc24']
+    paths:
+      - '.github/workflows/sudorouter-release.yml'
+      - 'scripts/package-sudorouter.sh'
+      - 'scripts/test_sudorouter_package.py'
+      - 'Dockerfile'
   push:
     tags: ['sudorouter-v*']
   workflow_dispatch:
@@ -9,18 +16,12 @@ on:
         description: Candidate version (sudorouter-vX.Y.Z); only uploads workflow artifacts
         required: true
         type: string
-      publish_run:
-        description: "Publish an already successful candidate run without rebuilding (run ID)"
-        required: false
-        type: string
-
 
 permissions:
   contents: read
 
 jobs:
   package:
-    if: inputs.publish_run == ''
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +38,7 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_sudorouter_package.py'
       - name: Build and smoke test native image
         env:
-          RELEASE_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'sudorouter-v0.0.1-rc.20261015' }}
+          RELEASE_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || format('sudorouter-v0.0.0-pr.{0}', github.event.pull_request.number) }}
           ARCH: ${{ matrix.arch }}
         run: bash scripts/package-sudorouter.sh "$RELEASE_TAG" "$ARCH" dist/sudorouter
       - uses: actions/upload-artifact@v4
@@ -71,64 +72,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          args=(--verify-tag --title "$TAG" --generate-notes)
+          args=(--verify-tag --latest=false --title "$TAG" --generate-notes)
           if [[ "${TAG#sudorouter-v}" == *-* ]]; then args+=(--prerelease); fi
           gh release create "$TAG" "${args[@]}" release/*
-
-  publish-candidate:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_run != ''
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: read
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      SOURCE_RUN: ${{ inputs.publish_run }}
-      CANDIDATE_TAG: ${{ inputs.tag }}
-    steps:
-      - name: Verify successful source build
-        id: source
-        run: |
-          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
-          [[ "$CANDIDATE_TAG" =~ ^sudorouter-v[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9.-]+$ ]]
-          gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN" > source-run.json
-          python3 - <<'CHECK'
-          import json, os
-          source = json.load(open('source-run.json'))
-          assert source['status'] == 'completed' and source['conclusion'] == 'success'
-          assert source['path'] == '.github/workflows/sudorouter-release.yml'
-          assert source['head_repository']['full_name'] == os.environ['GH_REPO']
-          assert source['head_branch'] == os.environ['GITHUB_REF_NAME']
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
-              stream.write('sha=' + source['head_sha'] + '\n')
-          CHECK
-      - uses: actions/download-artifact@v4
-        with:
-          run-id: ${{ inputs.publish_run }}
-          github-token: ${{ github.token }}
-          pattern: sudorouter-linux-*
-          path: artifacts
-      - name: Verify and combine architecture packages
-        run: |
-          VERSION="${CANDIDATE_TAG#sudorouter-v}"
-          mkdir release
-          for arch in amd64 arm64; do
-            test -f "artifacts/sudorouter-linux-$arch/sudorouter-$VERSION-linux-$arch.tar.gz"
-            (cd "artifacts/sudorouter-linux-$arch" && sha256sum -c SHA256SUMS)
-            cp "artifacts/sudorouter-linux-$arch/"*.tar.gz release/
-          done
-          cp artifacts/sudorouter-linux-*/*.source.json release/
-          cat artifacts/sudorouter-linux-*/SHA256SUMS | sort -u > release/SHA256SUMS
-          (cd release && sha256sum -c SHA256SUMS)
-      - name: Publish immutable candidate release
-        env:
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
-        run: |
-          printf 'Native amd64 and arm64 packages from %s/actions/runs/%s.\nSource commit: %s.\n' \
-            "https://github.com/$GH_REPO" "$SOURCE_RUN" "$SOURCE_SHA" > release-notes.md
-          # Require a pre-created tag at the exact commit whose packages passed CI.
-          TAG_SHA="$(gh api "repos/$GH_REPO/commits/$CANDIDATE_TAG" --jq .sha)"
-          test "$TAG_SHA" = "$SOURCE_SHA"
-          gh release create "$CANDIDATE_TAG" release/* --verify-tag \
-            --prerelease --latest=false --title "$CANDIDATE_TAG" --notes-file release-notes.md
