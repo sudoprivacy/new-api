@@ -5,6 +5,7 @@ on:
     tags:
       - '*'
       - '!nightly*'
+      - '!sudorouter-v*'  # Packaged by sudorouter-release.yml.
   workflow_dispatch:
     inputs:
       tag:
