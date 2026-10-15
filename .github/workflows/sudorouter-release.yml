@@ -1,0 +1,71 @@
+# sudoapi: Native offline SudoRouter releases.
+name: SudoRouter offline release
+on:
+  push:
+    tags: ['sudorouter-v*']
+    branches: ['codex/arm64-ci-*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Candidate version (sudorouter-vX.Y.Z); only uploads workflow artifacts
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v3
+      - name: Check packaging behavior
+        run: python3 -m unittest discover -s scripts -p 'test_sudorouter_package.py'
+      - name: Build and smoke test native image
+        env:
+          RELEASE_TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'sudorouter-v0.0.1-rc.20261015' }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/package-sudorouter.sh "$RELEASE_TAG" "$ARCH" dist/sudorouter
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sudorouter-linux-${{ matrix.arch }}
+          path: dist/sudorouter/*
+          if-no-files-found: error
+  release:
+    needs: package
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/sudorouter-v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sudorouter-linux-*
+          path: artifacts
+      - name: Merge verified native packages
+        run: |
+          mkdir release
+          for arch in amd64 arm64; do
+            (cd "artifacts/sudorouter-linux-$arch" && sha256sum -c SHA256SUMS)
+            cp "artifacts/sudorouter-linux-$arch/"*.tar.gz "artifacts/sudorouter-linux-$arch/"*.source.json release/
+          done
+          cat artifacts/sudorouter-linux-*/SHA256SUMS | sort -u > release/SHA256SUMS
+          (cd release && sha256sum -c SHA256SUMS)
+      - name: Publish a new release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          args=(--verify-tag --title "$TAG" --generate-notes)
+          if [[ "${TAG#sudorouter-v}" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "$TAG" "${args[@]}" release/*

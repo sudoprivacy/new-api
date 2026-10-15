@@ -12,6 +12,7 @@ on:
     tags:
       - '*'
       - '!*-alpha*'
+      - '!sudorouter-v*'  # Packaged by sudorouter-release.yml.
 
 jobs:
   linux:
