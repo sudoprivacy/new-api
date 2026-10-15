@@ -127,5 +127,8 @@ jobs:
         run: |
           printf 'Native amd64 and arm64 packages from %s/actions/runs/%s.\nSource commit: %s.\n' \
             "https://github.com/$GH_REPO" "$SOURCE_RUN" "$SOURCE_SHA" > release-notes.md
-          gh release create "$CANDIDATE_TAG" release/* --target "$SOURCE_SHA" \
+          # Require a pre-created tag at the exact commit whose packages passed CI.
+          TAG_SHA="$(gh api "repos/$GH_REPO/commits/$CANDIDATE_TAG" --jq .sha)"
+          test "$TAG_SHA" = "$SOURCE_SHA"
+          gh release create "$CANDIDATE_TAG" release/* --verify-tag \
             --prerelease --latest=false --title "$CANDIDATE_TAG" --notes-file release-notes.md
