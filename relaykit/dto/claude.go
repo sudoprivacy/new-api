@@ -122,6 +122,8 @@ type ClaudeMessageSource struct {
 type ClaudeMessage struct {
 	Role    string `json:"role"`
 	Content any    `json:"content"`
+	// sudoapi: Preserve Claude protocol fields and tool inputs.
+	OutputConfig json.RawMessage `json:"output_config,omitempty"`
 }
 
 func (c *ClaudeMessage) IsStringContent() bool {
@@ -542,6 +544,8 @@ type Thinking struct {
 	// the visible summary that was default on Opus 4.6; "omitted" (default on
 	// 4.7) suppresses it. Pass-through field from upstream Anthropic API.
 	Display string `json:"display,omitempty"`
+	// sudoapi: Preserve Claude protocol fields and tool inputs.
+	BlockBinding json.RawMessage `json:"block_binding,omitempty"`
 }
 
 func (c *Thinking) GetBudgetTokens() int {
