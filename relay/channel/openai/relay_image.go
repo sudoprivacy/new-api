@@ -39,8 +39,7 @@ func OpenaiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 		return nil, types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError)
 	}
 
-	var usageResp dto.SimpleResponse
-	err = common.Unmarshal(responseBody, &usageResp)
+	usageResp, _, err := decodeOpenAIImageResponse(responseBody)
 	if err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
@@ -121,16 +120,13 @@ func OpenaiImageStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 			// EndReason. HasErrors() flags the failure for logging/handling.
 			sr.Error(fmt.Errorf("%s", extractOpenAIImageStreamErrorMessage(raw)))
 		}
-		var chunk struct {
-			Type  string    `json:"type"`
-			Usage dto.Usage `json:"usage"`
-		}
-		if err := common.Unmarshal(raw, &chunk); err == nil {
+		chunk, eventType, err := decodeOpenAIImageResponse(raw)
+		if err == nil {
 			normalizeOpenAIUsage(&chunk.Usage)
 			if service.ValidUsage(&chunk.Usage) {
 				usage = &chunk.Usage
 			}
-			if chunk.Type == "image_generation.completed" || chunk.Type == "image_edit.completed" {
+			if eventType == "image_generation.completed" || eventType == "image_edit.completed" {
 				completedImages++
 			}
 		}
@@ -242,8 +238,8 @@ func openaiImageJSONAsStreamHandler(c *gin.Context, info *relaycommon.RelayInfo,
 	// Only decode usage/error. Do not Unmarshal data[] into dto.ImageResponse —
 	// b64_json values are large and would be copied into Go strings then
 	// re-marshaled for each SSE event.
-	var usageResp dto.SimpleResponse
-	if err := common.Unmarshal(responseBody, &usageResp); err != nil {
+	usageResp, _, err := decodeOpenAIImageResponse(responseBody)
+	if err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
 	if oaiError := usageResp.GetOpenAIError(); oaiError != nil && oaiError.Type != "" {
