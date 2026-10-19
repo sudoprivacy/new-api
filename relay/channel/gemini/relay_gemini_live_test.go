@@ -65,6 +65,8 @@ func newTestRelayInfo(clientWs, targetWs *websocket.Conn) *relaycommon.RelayInfo
 	info.ChannelMeta = &relaycommon.ChannelMeta{
 		UpstreamModelName: "gemini-2.5-flash-native-audio-preview-12-2025",
 	}
+	// Conversation fixtures use fixed-price billing; token quota storage is not initialized.
+	info.PriceData.UsePrice = true
 	return info
 }
 
