@@ -111,10 +111,14 @@ func SyncChannelCache(frequency int) {
 	}
 }
 
-func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string) (*Channel, error) {
+func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string, exhausted ...int) (*Channel, error) {
+	// sudoapi: Capacity failures remove candidates, not priority levels.
+	if len(exhausted) > 0 {
+		retry = 0
+	}
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannel(group, model, retry, requestPath)
+		return GetChannel(group, model, retry, requestPath, exhausted...)
 	}
 
 	channelSyncLock.RLock()
@@ -129,6 +133,7 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 		channels = filterChannelsByRequestPathAndModel(group2model2channels[group][normalizedModel], requestPath, model)
 	}
 
+	channels = excludeExhaustedChannels(channels, exhausted)
 	if len(channels) == 0 {
 		return nil, nil
 	}
