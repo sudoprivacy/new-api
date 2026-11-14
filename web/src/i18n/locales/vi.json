@@ -2069,7 +2069,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Các Dự Án Liên Quan",
     "footer.defaultCopyright": "Bản quyền được bảo lưu.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
+    "footer.newapi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Đối với các kênh được thêm sau ngày 10 tháng 5 năm 2025, không cần loại bỏ \".\" khỏi tên mô hình trong quá trình triển khai",
     "For private deployments, format: https://fastgpt.run/api/openapi": "Đối với các triển khai riêng tư, định dạng: https://fastgpt.run/api/openapi",
     "For security, existing access tokens cannot be displayed. Regenerate only when you need a new token.": "Vì lý do bảo mật, không thể hiển thị lại token truy cập hiện có. Chỉ tạo lại khi bạn cần token mới.",
@@ -5327,6 +5327,22 @@
     "Cache reuse": "Cache reuse",
     "Requests without cache": "Requests without cache",
     "No cache usage": "No cache usage",
-    "Incomplete report": "Incomplete report"
+    "Incomplete report": "Incomplete report",
+    "New chat": "New chat",
+    "Recent chats": "Recent chats",
+    "Saved in this browser": "Saved in this browser",
+    "Import older chat": "Import older chat",
+    "Import older chat?": "Import older chat?",
+    "Import": "Import",
+    "This browser has a chat from an older version. Import it only if it belongs to you. The original copy will be kept.": "This browser has a chat from an older version. Import it only if it belongs to you. The original copy will be kept.",
+    "Chats could not be saved in this browser. Your current chat is still open.": "Chats could not be saved in this browser. Your current chat is still open.",
+    "Saved chats changed in another tab. Keep any unsaved text, then reload this page.": "Saved chats changed in another tab. Keep any unsaved text, then reload this page.",
+    "Recent chats is full. Delete a saved chat before starting another.": "Recent chats is full. Delete a saved chat before starting another.",
+    "Saved chats could not be read. The original data has been kept.": "Saved chats could not be read. The original data has been kept.",
+    "Chat deleted": "Chat deleted",
+    "Delete chat": "Delete chat",
+    "Delete this chat?": "Delete this chat?",
+    "This chat and its messages will be deleted. Other chats will be kept.": "This chat and its messages will be deleted. Other chats will be kept.",
+    "Chat could not be deleted. Your conversation has been kept.": "Không thể xóa cuộc trò chuyện. Nội dung đã được giữ lại."
   }
 }

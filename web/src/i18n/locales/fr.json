@@ -2069,7 +2069,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Projets liés",
     "footer.defaultCopyright": "Tous droits réservés.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Tous droits réservés. Conçu et développé par les contributeurs du projet.",
+    "footer.newapi.projectAttributionSuffix": "Tous droits réservés. Conçu et développé par les contributeurs du projet.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Pour les canaux ajoutés après le 10 mai 2025, pas besoin de supprimer \".\" des noms de modèles lors du déploiement",
     "For private deployments, format: https://fastgpt.run/api/openapi": "Pour les déploiements privés, format : https://fastgpt.run/api/openapi",
     "For security, existing access tokens cannot be displayed. Regenerate only when you need a new token.": "Pour des raisons de sécurité, les jetons d'accès existants ne peuvent pas être réaffichés. Ne les régénérez que si vous en avez besoin d'un nouveau.",
@@ -5327,6 +5327,22 @@
     "Cache reuse": "Cache reuse",
     "Requests without cache": "Requests without cache",
     "No cache usage": "No cache usage",
-    "Incomplete report": "Incomplete report"
+    "Incomplete report": "Incomplete report",
+    "New chat": "New chat",
+    "Recent chats": "Recent chats",
+    "Saved in this browser": "Saved in this browser",
+    "Import older chat": "Import older chat",
+    "Import older chat?": "Import older chat?",
+    "Import": "Import",
+    "This browser has a chat from an older version. Import it only if it belongs to you. The original copy will be kept.": "This browser has a chat from an older version. Import it only if it belongs to you. The original copy will be kept.",
+    "Chats could not be saved in this browser. Your current chat is still open.": "Chats could not be saved in this browser. Your current chat is still open.",
+    "Saved chats changed in another tab. Keep any unsaved text, then reload this page.": "Saved chats changed in another tab. Keep any unsaved text, then reload this page.",
+    "Recent chats is full. Delete a saved chat before starting another.": "Recent chats is full. Delete a saved chat before starting another.",
+    "Saved chats could not be read. The original data has been kept.": "Saved chats could not be read. The original data has been kept.",
+    "Chat deleted": "Chat deleted",
+    "Delete chat": "Delete chat",
+    "Delete this chat?": "Delete this chat?",
+    "This chat and its messages will be deleted. Other chats will be kept.": "This chat and its messages will be deleted. Other chats will be kept.",
+    "Chat could not be deleted. Your conversation has been kept.": "La conversation n’a pas pu être supprimée. Elle a été conservée."
   }
 }

@@ -50,7 +50,7 @@ type PlaygroundInputToolsProps = {
   config: PlaygroundConfig
   disabled?: boolean
   hasMessages?: boolean
-  onClearMessages?: () => void
+  onClearMessages?: () => boolean | void
   onConfigChange: <K extends keyof PlaygroundConfig>(
     key: K,
     value: PlaygroundConfig[K]
@@ -87,9 +87,14 @@ export function PlaygroundInputTools({
   }
 
   const handleClearMessages = () => {
-    onClearMessages?.()
+    if (onClearMessages?.() === false) {
+      toast.error(
+        t('Chat could not be deleted. Your conversation has been kept.')
+      )
+      return
+    }
     setClearConfirmOpen(false)
-    toast.success(t('Conversation cleared'))
+    toast.success(t('Chat deleted'))
   }
 
   return (
@@ -161,7 +166,7 @@ export function PlaygroundInputTools({
           <TooltipTrigger
             render={
               <PromptInputButton
-                aria-label={t('Clear chat history')}
+                aria-label={t('Delete chat')}
                 className='text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-medium'
                 disabled={disabled || !hasMessages || !onClearMessages}
                 onClick={() => setClearConfirmOpen(true)}
@@ -172,7 +177,7 @@ export function PlaygroundInputTools({
             }
           />
           <TooltipContent>
-            <p>{t('Clear chat history')}</p>
+            <p>{t('Delete chat')}</p>
           </TooltipContent>
         </Tooltip>
       </PromptInputTools>
@@ -180,13 +185,13 @@ export function PlaygroundInputTools({
       <ConfirmDialog
         destructive
         desc={t(
-          'All playground messages saved in this browser will be removed. This cannot be undone.'
+          'This chat and its messages will be deleted. Other chats will be kept.'
         )}
-        confirmText={t('Clear')}
+        confirmText={t('Delete')}
         handleConfirm={handleClearMessages}
         open={clearConfirmOpen}
         onOpenChange={setClearConfirmOpen}
-        title={t('Clear chat history?')}
+        title={t('Delete this chat?')}
       />
     </>
   )

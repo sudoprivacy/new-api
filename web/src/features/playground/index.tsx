@@ -16,7 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useAuthStore } from '@/stores/auth-store'
+
 import { PlaygroundChat } from './components/chat/playground-chat'
+import { ConversationToolbar } from './components/chat/sudo-conversation-toolbar'
 import { PlaygroundInput } from './components/input/playground-input'
 import {
   useChatHandler,
@@ -26,6 +29,11 @@ import {
 } from './hooks'
 
 export function Playground() {
+  const userId = useAuthStore((state) => state.auth.user?.id)
+  return <PlaygroundSession key={userId ?? 'anonymous'} />
+}
+
+function PlaygroundSession() {
   const {
     config,
     parameterEnabled,
@@ -38,7 +46,15 @@ export function Playground() {
     setGroups,
     updateConfig,
     updateParameterEnabled,
-    clearMessages,
+    history,
+    draft,
+    error,
+    hasLegacy,
+    setDraft,
+    newChat,
+    selectChat,
+    deleteChat,
+    importLegacy,
   } = usePlaygroundState()
 
   const { sendChat, stopGeneration, isGenerating } = useChatHandler({
@@ -63,7 +79,7 @@ export function Playground() {
 
   const handleClearMessages = () => {
     handleEditOpenChange(false)
-    clearMessages()
+    return deleteChat()
   }
 
   const { isLoadingModels } = usePlaygroundOptions({
@@ -76,9 +92,28 @@ export function Playground() {
 
   return (
     <div className='relative flex size-full min-h-0 flex-col overflow-hidden'>
+      <ConversationToolbar
+        chats={history.chats}
+        activeId={history.activeId}
+        disabled={
+          isGenerating || isLoadingMessages || editingMessageKey !== null
+        }
+        error={error}
+        hasLegacy={hasLegacy}
+        onNewChat={() => {
+          newChat()
+        }}
+        onSelectChat={(id) => {
+          selectChat(id)
+        }}
+        onImportLegacy={() => {
+          importLegacy()
+        }}
+      />
       {/* Full-width scroll container: scrolling works even over side whitespace */}
       <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
         <PlaygroundChat
+          key={history.activeId}
           messages={messages}
           isLoadingMessages={isLoadingMessages}
           onRegenerateMessage={handleRegenerateMessage}
@@ -96,8 +131,11 @@ export function Playground() {
       {/* Input area: center content and constrain to the same container width */}
       <div className='mx-auto w-full max-w-4xl'>
         <PlaygroundInput
+          key={history.activeId}
+          draftValue={draft}
+          onDraftChange={setDraft}
           config={config}
-          disabled={isGenerating}
+          disabled={isGenerating || isLoadingMessages}
           groups={groups}
           groupValue={config.group}
           isGenerating={isGenerating}
@@ -112,7 +150,9 @@ export function Playground() {
           onStop={stopGeneration}
           onSubmit={handleSendMessage}
           parameterEnabled={parameterEnabled}
-          hasMessages={messages.length > 0}
+          hasMessages={
+            messages.length > 0 || draft.length > 0 || history.chats.length > 1
+          }
         />
       </div>
     </div>
