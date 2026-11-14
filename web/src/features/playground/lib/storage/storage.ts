@@ -35,6 +35,7 @@ import {
   parameterEnabledSchema,
   playgroundConfigSchema,
 } from './storage-schema'
+import { getPlaygroundStorageKey } from './sudo-storage-scope'
 
 type StoredEnvelope<T> = {
   version: number
@@ -46,7 +47,9 @@ const MIN_PREFIX_COLLAPSE_LENGTH = 2000
 const MIN_REPEATED_SECTION_COUNT = 3
 const SECTION_HEADING_LINE_PATTERN = /^#{2,6}\s+\d+\.\s+.+$/gm
 
-function readStoredValue(key: string): unknown | null {
+function readStoredValue(baseKey: string): unknown | null {
+  const key = getPlaygroundStorageKey(baseKey)
+  if (!key) return null
   const saved = localStorage.getItem(key)
   if (!saved) return null
 
@@ -54,11 +57,13 @@ function readStoredValue(key: string): unknown | null {
 }
 
 function readStoredMessagesValue(): unknown | null {
-  const saved = localStorage.getItem(STORAGE_KEYS.MESSAGES)
+  const key = getPlaygroundStorageKey(STORAGE_KEYS.MESSAGES)
+  if (!key) return null
+  const saved = localStorage.getItem(key)
   if (!saved) return null
 
   if (saved.length > MAX_STORED_MESSAGES_BYTES) {
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES)
+    localStorage.removeItem(key)
     return null
   }
 
@@ -77,7 +82,9 @@ function unwrapStoredValue(value: unknown): unknown {
   return value
 }
 
-function writeStoredValue<T>(key: string, data: T): void {
+function writeStoredValue<T>(baseKey: string, data: T): void {
+  const key = getPlaygroundStorageKey(baseKey)
+  if (!key) return
   const payload: StoredEnvelope<T> = {
     version: STORAGE_VERSION,
     data,
@@ -343,25 +350,7 @@ export function loadMessages(): Message[] | null {
     const saved = readStoredMessagesValue()
     if (!saved) return null
 
-    const parsed = messagesSchema.parse(unwrapStoredValue(saved)) as Message[]
-    const normalized = parsed.map(normalizeStoredMessageForLoad)
-    const normalizedChanged = normalized.some(
-      (message, index) => message !== parsed[index]
-    )
-    const trimmed = trimMessages(normalized)
-    const sizeTrimmed = trimMessagesByContentSize(trimmed)
-    const sanitized = sanitizeMessagesOnLoad(sizeTrimmed)
-
-    if (
-      normalizedChanged ||
-      trimmed !== normalized ||
-      sizeTrimmed !== trimmed ||
-      sanitized !== sizeTrimmed
-    ) {
-      saveMessages(sanitized)
-    }
-
-    return sanitized
+    return normalizeStoredMessages(saved)
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to load messages:', error)
@@ -369,13 +358,25 @@ export function loadMessages(): Message[] | null {
   return null
 }
 
+// Shared by the current conversation and browser-local conversation history.
+export function normalizeStoredMessages(saved: unknown): Message[] {
+  const parsed = messagesSchema.parse(unwrapStoredValue(saved)) as Message[]
+  const normalized = parsed.map(normalizeStoredMessageForLoad)
+  return sanitizeMessagesOnLoad(
+    trimMessagesByContentSize(trimMessages(normalized))
+  )
+}
+
+export function prepareStoredMessages(messages: Message[]): Message[] {
+  return messagesSchema.parse(trimMessages(messages)) as Message[]
+}
+
 /**
  * Save messages to localStorage
  */
 export function saveMessages(messages: Message[]): void {
   try {
-    const trimmed = trimMessages(messages)
-    const parsed = messagesSchema.parse(trimmed) as Message[]
+    const parsed = prepareStoredMessages(messages)
     writeStoredValue(STORAGE_KEYS.MESSAGES, parsed)
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -388,9 +389,10 @@ export function saveMessages(messages: Message[]): void {
  */
 export function clearPlaygroundData(): void {
   try {
-    localStorage.removeItem(STORAGE_KEYS.CONFIG)
-    localStorage.removeItem(STORAGE_KEYS.PARAMETER_ENABLED)
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES)
+    for (const baseKey of Object.values(STORAGE_KEYS)) {
+      const key = getPlaygroundStorageKey(baseKey)
+      if (key) localStorage.removeItem(key)
+    }
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to clear playground data:', error)

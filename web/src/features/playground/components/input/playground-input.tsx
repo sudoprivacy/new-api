@@ -41,6 +41,8 @@ interface PlaygroundInputProps {
   onSubmit: (text: string) => void
   onStop?: () => void
   disabled?: boolean
+  draftValue?: string
+  onDraftChange?: (text: string) => void
   isGenerating?: boolean
   models: ModelOption[]
   modelValue: string
@@ -54,7 +56,7 @@ interface PlaygroundInputProps {
     key: K,
     value: PlaygroundConfig[K]
   ) => void
-  onClearMessages?: () => void
+  onClearMessages?: () => boolean | void
   onParameterEnabledChange: (
     key: keyof ParameterEnabled,
     value: boolean
@@ -67,6 +69,8 @@ export function PlaygroundInput({
   onSubmit,
   onStop,
   disabled,
+  draftValue,
+  onDraftChange,
   isGenerating,
   models,
   modelValue,
@@ -82,7 +86,9 @@ export function PlaygroundInput({
   parameterEnabled,
 }: PlaygroundInputProps) {
   const { t } = useTranslation()
-  const [text, setText] = useState('')
+  const [localText, setLocalText] = useState('')
+  const text = draftValue ?? localText
+  const setText = onDraftChange ?? setLocalText
 
   const handleSubmit = (message: PromptInputMessage) => {
     const submittableText = getSubmittableInputText(message, disabled)
