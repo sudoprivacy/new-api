@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { DEFAULT_CONFIG } from '../../constants'
 import type { GroupOption, ModelOption } from '../../types'
 
 export function getModelFallback(
@@ -28,7 +29,10 @@ export function getModelFallback(
     return null
   }
 
-  return models[0].value
+  return (
+    models.find((model) => model.value === DEFAULT_CONFIG.model)?.value ??
+    models[0].value
+  )
 }
 
 export function shouldClearModelForGroup(
@@ -53,7 +57,9 @@ export function getGroupFallback(
   }
 
   return (
-    groups.find((group) => group.value === 'default')?.value ?? groups[0].value
+    groups.find((group) => group.value === 'auto')?.value ??
+    groups.find((group) => group.value === 'default')?.value ??
+    groups[0].value
   )
 }
 

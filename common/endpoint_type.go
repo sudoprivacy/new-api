@@ -6,6 +6,8 @@ import "github.com/QuantumNous/new-api/constant"
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
 	var endpointTypes []constant.EndpointType
 	switch channelType {
+	case constant.ChannelTypeTypesafe:
+		endpointTypes = []constant.EndpointType{constant.EndpointTypeSystemOne}
 	// sudoapi: Official Seedance task adaptor.
 	case constant.ChannelTypeSeedance:
 		endpointTypes = []constant.EndpointType{}

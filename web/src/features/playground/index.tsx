@@ -119,7 +119,11 @@ function PlaygroundSession() {
           onRegenerateMessage={handleRegenerateMessage}
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
-          onSelectPrompt={handleSendMessage}
+          onSelectPrompt={
+            isLoadingModels || models.length === 0 || groups.length === 0
+              ? setDraft
+              : handleSendMessage
+          }
           isGenerating={isGenerating}
           editingKey={editingMessageKey}
           onCancelEdit={handleEditOpenChange}

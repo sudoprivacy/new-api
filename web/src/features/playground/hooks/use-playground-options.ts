@@ -72,6 +72,15 @@ export function usePlaygroundOptions({
   const userId = useAuthStore((state) => state.auth.user?.id)
 
   const {
+    data: groupsData,
+    error: groupsError,
+    isError: isGroupsError,
+  } = useQuery({
+    queryKey: ['playground-groups', userId],
+    queryFn: getUserGroups,
+  })
+
+  const {
     data: modelsData,
     error: modelsError,
     isError: isModelsError,
@@ -79,16 +88,7 @@ export function usePlaygroundOptions({
   } = useQuery({
     queryKey: ['playground-models', userId, currentGroup],
     queryFn: () => getUserModels(currentGroup),
-    enabled: currentGroup !== '',
-  })
-
-  const {
-    data: groupsData,
-    error: groupsError,
-    isError: isGroupsError,
-  } = useQuery({
-    queryKey: ['playground-groups', userId],
-    queryFn: getUserGroups,
+    enabled: groupsData?.some((group) => group.value === currentGroup) === true,
   })
 
   useEffect(() => {
@@ -114,7 +114,10 @@ export function usePlaygroundOptions({
   }, [isGroupsError, groupsError, t])
 
   useEffect(() => {
-    if (!modelsData) return
+    if (!modelsData) {
+      setModels([])
+      return
+    }
 
     setModels(modelsData)
     const fallback = getModelFallback(modelsData, currentModel)
@@ -141,6 +144,11 @@ export function usePlaygroundOptions({
   }, [groupsData, currentGroup, setGroups, updateConfig])
 
   return {
-    isLoadingModels,
+    isLoadingModels:
+      isLoadingModels ||
+      (Boolean(groupsData?.length) &&
+        !groupsData?.some((group) => group.value === currentGroup)) ||
+      (Boolean(modelsData?.length) &&
+        !modelsData?.some((model) => model.value === currentModel)),
   }
 }
