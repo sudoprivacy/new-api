@@ -343,7 +343,7 @@ func (channel *Channel) GetAutoBan() bool {
 }
 
 func (channel *Channel) Save() error {
-	return DB.Save(channel).Error
+	return writeRequiredChannel(channel, true)
 }
 
 // saveStatusState persists only the fields owned by the channel status flow.
@@ -463,6 +463,9 @@ func BatchInsertChannels(channels []Channel) error {
 }
 
 func BatchDeleteChannels(ids []int) (int64, error) {
+	if err := rejectRequiredChannelIDs(ids); err != nil {
+		return 0, err
+	}
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -582,7 +585,7 @@ func (channel *Channel) Update() error {
 		}
 	}
 	var err error
-	err = DB.Model(channel).Updates(channel).Error
+	err = writeRequiredChannel(channel, false)
 	if err != nil {
 		return err
 	}
@@ -613,7 +616,7 @@ func (channel *Channel) UpdateBalance(balance float64) {
 
 func (channel *Channel) Delete() error {
 	var err error
-	err = DB.Delete(channel).Error
+	err = writeRequiredChannelConfiguration(DB, func(row *Channel) bool { return row.Id == channel.Id }, nil, true, func(tx *gorm.DB) error { return tx.Delete(channel).Error })
 	if err != nil {
 		return err
 	}
@@ -723,6 +726,9 @@ func hasEnabledMultiKey(keys []string, statusList map[int]int) bool {
 }
 
 func UpdateChannelStatus(channelId int, usingKey string, status int, reason string) bool {
+	if !allowRequiredChannelRuntimeStatus(channelId, status) {
+		return false
+	}
 	if common.MemoryCacheEnabled {
 		channelStatusLock.Lock()
 		defer channelStatusLock.Unlock()
@@ -799,7 +805,7 @@ func UpdateChannelStatus(channelId int, usingKey string, status int, reason stri
 }
 
 func EnableChannelByTag(tag string) error {
-	err := DB.Model(&Channel{}).Where("tag = ?", tag).Update("status", common.ChannelStatusEnabled).Error
+	err := setRequiredChannelsStatusByTag(tag, common.ChannelStatusEnabled)
 	if err != nil {
 		return err
 	}
@@ -808,7 +814,7 @@ func EnableChannelByTag(tag string) error {
 }
 
 func DisableChannelByTag(tag string) error {
-	err := DB.Model(&Channel{}).Where("tag = ?", tag).Update("status", common.ChannelStatusManuallyDisabled).Error
+	err := setRequiredChannelsStatusByTag(tag, common.ChannelStatusManuallyDisabled)
 	if err != nil {
 		return err
 	}
@@ -854,7 +860,7 @@ func EditChannelByTag(tag string, newTag *string, modelMapping *string, models *
 		updateData.HeaderOverride = headerOverride
 	}
 
-	err := DB.Model(&Channel{}).Where("tag = ?", tag).Updates(updateData).Error
+	err := editRequiredChannelsByTag(tag, updateData)
 	if err != nil {
 		return err
 	}
@@ -893,13 +899,11 @@ func updateChannelUsedQuota(id int, quota int) {
 }
 
 func DeleteChannelByStatus(status int64) (int64, error) {
-	result := DB.Where("status = ?", status).Delete(&Channel{})
-	return result.RowsAffected, result.Error
+	return deleteRequiredChannelsByStatus(status, false)
 }
 
 func DeleteDisabledChannel() (int64, error) {
-	result := DB.Where("status = ? or status = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled).Delete(&Channel{})
-	return result.RowsAffected, result.Error
+	return deleteRequiredChannelsByStatus(0, true)
 }
 
 func GetPaginatedTags(offset int, limit int) ([]*string, error) {

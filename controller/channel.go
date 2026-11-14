@@ -1139,6 +1139,10 @@ func UpdateChannelStatus(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if err := model.ValidateChannelStatusWrite([]int{id}, req.Status); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	changed := model.UpdateChannelStatus(id, "", req.Status, "manual operation")
 	if changed {
 		model.InitChannelCache()
@@ -1159,6 +1163,10 @@ func BatchUpdateChannelStatus(c *gin.Context) {
 	req := ChannelStatusBatchRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.Ids) == 0 || !isManageableChannelStatus(req.Status) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	if err := model.ValidateChannelStatusWrite(req.Ids, req.Status); err != nil {
+		common.ApiError(c, err)
 		return
 	}
 	changedCount := 0
