@@ -10,5 +10,8 @@ import (
 // BeforeCreate also covers batch insertion and server-side copying. The batch
 // insertion transaction rolls back all earlier chunks when a channel is invalid.
 func (channel *Channel) BeforeCreate(_ *gorm.DB) error {
-	return common.ValidateExclusiveChannelGroups(channel.Group)
+	if err := common.ValidateExclusiveChannelGroups(channel.Group); err != nil {
+		return err
+	}
+	return validateRequiredChannelCreation(channel)
 }

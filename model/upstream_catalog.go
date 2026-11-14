@@ -17,16 +17,10 @@ var upstreamCatalogWriteMu sync.Mutex
 // list. A failed ability update must remain discoverable on the next retry.
 func PersistDiscoveredChannelModels(channel *Channel, updateModels bool) error {
 	updates := map[string]interface{}{"settings": channel.OtherSettings}
-	if !updateModels {
-		return DB.Model(&Channel{}).Where("id = ?", channel.Id).Updates(updates).Error
+	if updateModels {
+		updates["models"] = channel.Models
 	}
-	updates["models"] = channel.Models
-	return DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Channel{}).Where("id = ?", channel.Id).Updates(updates).Error; err != nil {
-			return err
-		}
-		return channel.UpdateAbilities(tx)
-	})
+	return writeRequiredChannelCatalog(channel, updates, updateModels)
 }
 
 func MergeUpstreamCatalog(channelID int, incoming map[string]upstream_catalog.Entry) error {
