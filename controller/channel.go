@@ -476,6 +476,10 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		return fmt.Errorf("channel cannot be empty")
 	}
 
+	if err := common.ValidateExclusiveChannelGroups(channel.Group); err != nil {
+		return err
+	}
+
 	// 校验 channel settings
 	if err := channel.ValidateSettings(); err != nil {
 		return fmt.Errorf("渠道额外设置[channel setting] 格式错误：%s", err.Error())
@@ -1422,6 +1426,11 @@ func CopyChannel(c *gin.Context) {
 	if err != nil {
 		common.SysError("failed to get channel by id: " + err.Error())
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取渠道信息失败，请稍后重试"})
+		return
+	}
+
+	if err := common.ValidateExclusiveChannelGroups(origin.Group); err != nil {
+		common.ApiError(c, err)
 		return
 	}
 
