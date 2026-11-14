@@ -3,7 +3,6 @@
 package middleware
 
 import (
-	"os"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -20,11 +19,7 @@ func allowsExclusiveChannelGroup(c *gin.Context, channel *model.Channel) bool {
 		return true
 	}
 	tokenGroup := common.GetContextKeyString(c, constant.ContextKeyTokenGroup)
-	for _, restricted := range strings.Split(os.Getenv("REQUIRE_EXPLICIT_TOKEN_GROUPS"), ",") {
-		restricted = strings.TrimSpace(restricted)
-		if restricted == "" {
-			continue
-		}
+	for restricted := range common.ExplicitTokenGroups() {
 		for _, group := range strings.Split(channel.Group, ",") {
 			if strings.TrimSpace(group) == restricted && tokenGroup != restricted {
 				return false

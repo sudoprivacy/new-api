@@ -540,6 +540,9 @@ func (channel *Channel) Insert() error {
 }
 
 func (channel *Channel) Update() error {
+	if err := common.ValidateExclusiveChannelGroups(channel.Group); err != nil {
+		return err
+	}
 	// If this is a multi-key channel, recalculate MultiKeySize based on the current key list to avoid inconsistency after editing keys
 	if channel.ChannelInfo.IsMultiKey {
 		var keyStr string
@@ -814,6 +817,11 @@ func DisableChannelByTag(tag string) error {
 }
 
 func EditChannelByTag(tag string, newTag *string, modelMapping *string, models *string, group *string, priority *int64, weight *uint, paramOverride *string, headerOverride *string) error {
+	if group != nil {
+		if err := common.ValidateExclusiveChannelGroups(*group); err != nil {
+			return err
+		}
+	}
 	updateData := Channel{}
 	shouldReCreateAbilities := false
 	updatedTag := tag
