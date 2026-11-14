@@ -24,6 +24,9 @@ import (
 
 func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
 	info.InitChannelMeta(c)
+	if info.ChannelType == constant.ChannelTypeTypesafe {
+		return types.NewErrorWithStatusCode(fmt.Errorf("decision models do not support chat completions; use /v1/systemone with state and questions"), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
 
 	textReq, ok := info.Request.(*dto.GeneralOpenAIRequest)
 	if !ok {

@@ -19,6 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 import { API_ENDPOINTS } from './constants'
+import {
+  getChatCatalog,
+  getChatGroupNames,
+  isChatModel,
+} from './lib/options/sudo-chat-catalog'
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -44,26 +49,35 @@ export async function sendChatCompletion(
  * Get user available models
  */
 export async function getUserModels(group: string): Promise<ModelOption[]> {
-  const res = await api.get(API_ENDPOINTS.USER_MODELS, {
-    params: { group },
-  })
+  const [res, catalog] = await Promise.all([
+    api.get(API_ENDPOINTS.USER_MODELS, { params: { group } }),
+    getChatCatalog(),
+  ])
   const { data } = res
 
   if (!data.success || !Array.isArray(data.data)) {
     return []
   }
 
-  return data.data.map((model: string) => ({
-    label: model,
-    value: model,
-  }))
+  const chatModels = new Set(
+    catalog.data.filter(isChatModel).map((model) => model.model_name)
+  )
+  return data.data
+    .filter((model: string) => chatModels.has(model))
+    .map((model: string) => ({
+      label: model,
+      value: model,
+    }))
 }
 
 /**
  * Get user groups
  */
 export async function getUserGroups(): Promise<GroupOption[]> {
-  const res = await api.get(API_ENDPOINTS.USER_GROUPS)
+  const [res, catalog] = await Promise.all([
+    api.get(API_ENDPOINTS.USER_GROUPS),
+    getChatCatalog(),
+  ])
   const { data } = res
 
   if (!data.success || !data.data) {
@@ -73,10 +87,13 @@ export async function getUserGroups(): Promise<GroupOption[]> {
   const groupData = data.data as Record<string, { desc: string; ratio: number }>
 
   // label is for button display (name only); desc is for dropdown content
-  return Object.entries(groupData).map(([group, info]) => ({
-    label: group,
-    value: group,
-    ratio: info.ratio,
-    desc: info.desc,
-  }))
+  const chatGroups = getChatGroupNames(catalog)
+  return Object.entries(groupData)
+    .filter(([group]) => chatGroups.has(group))
+    .map(([group, info]) => ({
+      label: group,
+      value: group,
+      ratio: info.ratio,
+      desc: info.desc,
+    }))
 }

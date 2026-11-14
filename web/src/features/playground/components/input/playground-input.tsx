@@ -26,7 +26,7 @@ import {
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
 
-import { getSubmittableInputText } from '../../lib'
+import { getInputControlState, getSubmittableInputText } from '../../lib'
 import type {
   ModelOption,
   GroupOption,
@@ -93,7 +93,16 @@ export function PlaygroundInput({
   const handleSubmit = (message: PromptInputMessage) => {
     const submittableText = getSubmittableInputText(message, disabled)
 
-    if (!submittableText) return
+    const { canSubmit } = getInputControlState({
+      disabled,
+      groups,
+      hasStopHandler: Boolean(onStop),
+      isGenerating,
+      isModelLoading,
+      models,
+      text: submittableText ?? '',
+    })
+    if (!canSubmit || !submittableText) return
     onSubmit(submittableText)
     setText('')
   }
