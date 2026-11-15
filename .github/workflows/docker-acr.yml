@@ -1,6 +1,17 @@
 name: Docker Build and Push to ACR
 
 on:
+  workflow_call:
+    inputs:
+      source_revision:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+    outputs:
+      digest:
+        value: ${{ jobs.build-and-push.outputs.digest }}
   workflow_dispatch:
     inputs:
       image_tag:
@@ -9,7 +20,7 @@ on:
         type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: acr-${{ inputs.source_revision || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -21,9 +32,13 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_revision || github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -42,7 +57,7 @@ jobs:
       - name: Resolve image tag
         id: image_tag
         env:
-          INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           if [ -n "$INPUT_IMAGE_TAG" ]; then
             tag="$INPUT_IMAGE_TAG"
@@ -53,12 +68,13 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           build-args: |
-            SOURCE_REVISION=${{ github.sha }}
+            SOURCE_REVISION=${{ inputs.source_revision || github.sha }}
           tags: |
             ${{ env.REGISTRY }}/new-api:${{ steps.image_tag.outputs.tag }}
             ${{ env.REGISTRY }}/new-api:${{ steps.date.outputs.DATE }}
