@@ -2,11 +2,11 @@
 name: SudoRouter production CD
 
 on:
-  workflow_run:
-    workflows: [CI]
-    branches: [sudo/rc24]
-    types: [completed]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      reviewed_revision:
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,10 +20,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    if: >-
-      vars.SUDOROUTER_DEPLOY_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'))
+    if: vars.SUDOROUTER_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/sudo/rc24'
     runs-on: ubuntu-latest
     outputs:
       revision: ${{ steps.gate.outputs.revision }}
@@ -31,17 +28,16 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: sudo/rc24
-      - name: Require successful CI on the current production branch head
+      - name: Require the reviewed CI revision to remain the production branch head
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
-          REQUESTED_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REQUESTED_REVISION: ${{ inputs.reviewed_revision }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           current="$(git rev-parse HEAD)"
           test "$REQUESTED_REVISION" = "$current"
-          gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?head_sha=$current&event=push&status=success" --jq '.workflow_runs | length' | grep -Eq '^[1-9][0-9]*$'
           echo "revision=$current" >> "$GITHUB_OUTPUT"
 
   image:
