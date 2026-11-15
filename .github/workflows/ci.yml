@@ -5,15 +5,29 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [sudo/rc24]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  production-release:
+    name: Guarded production release
+    needs: [backend, frontend, deployment-contract]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/sudo/rc24'
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/sudorouter-cd.yml
+    with:
+      reviewed_revision: ${{ github.sha }}
+    secrets: inherit
+
   deployment-contract:
     name: Deployment receipt and failure boundaries
     runs-on: ubuntu-latest

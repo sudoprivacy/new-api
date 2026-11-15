@@ -10,6 +10,14 @@ that candidate before Caddy sends public traffic to it. The primary then drains,
 updates and passes its own business probe before Caddy switches back and the
 temporary slave drains and is removed. Datastores are not recreated.
 
+The repository's default branch remains upstream `main`. Therefore CD is a
+reusable workflow called by the production branch's CI after its three checks
+succeed; it does not depend on a new default-branch `workflow_run` trigger.
+Production CI runs are queued rather than cancelled so a later push cannot stop
+an active rollout. To retry, dispatch the registered **CI** workflow with
+`--ref sudo/rc24`; its checks run before release. Independent hourly recovery
+checks live in Ladder's default-branch operations workflow.
+
 This keeps one permanent application replica. It does not provide host/database
 failover or unlimited stream lifetime. Review schema compatibility for old/new
 overlap and rollback before merging migration changes. Never automatically
