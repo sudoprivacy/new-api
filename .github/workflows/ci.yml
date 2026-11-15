@@ -2,7 +2,9 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [sudo/rc24]
 
 permissions:
   contents: read
@@ -12,6 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployment-contract:
+    name: Deployment receipt and failure boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - run: python3 -m unittest discover -s scripts -p 'test_sudorouter_cd.py' -v
+
   backend:
     name: Backend vet, build, and test
     if: github.event.action != 'closed' || github.event.pull_request.merged == true

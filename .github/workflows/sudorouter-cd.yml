@@ -1,0 +1,80 @@
+# sudoapi: Guarded single-VM SudoRouter continuous deployment.
+name: SudoRouter production CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [sudo/rc24]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sudorouter-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    permissions:
+      contents: read
+      actions: read
+    if: >-
+      vars.SUDOROUTER_DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'))
+    runs-on: ubuntu-latest
+    outputs:
+      revision: ${{ steps.gate.outputs.revision }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: sudo/rc24
+      - name: Require successful CI on the current production branch head
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          current="$(git rev-parse HEAD)"
+          test "$REQUESTED_REVISION" = "$current"
+          gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?head_sha=$current&event=push&status=success" --jq '.workflow_runs | length' | grep -Eq '^[1-9][0-9]*$'
+          echo "revision=$current" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: gate
+    uses: ./.github/workflows/docker-acr.yml
+    with:
+      source_revision: ${{ needs.gate.outputs.revision }}
+      image_tag: cd-${{ needs.gate.outputs.revision }}
+    secrets: inherit
+
+  deploy:
+    needs: [gate, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.gate.outputs.revision }}
+      - name: Authenticate using the repository's scoped production identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SUDOROUTER_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.SUDOROUTER_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.SUDOROUTER_AZURE_SUBSCRIPTION_ID }}
+      - name: Recheck head and run the installed release worker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REVISION: ${{ needs.gate.outputs.revision }}
+          RELEASE_IMAGE: sudorouter.azurecr.io/new-api@${{ needs.image.outputs.digest }}
+          RELEASE_BUNDLE: ${{ vars.SUDOROUTER_RELEASE_BUNDLE }}
+        run: python3 scripts/sudorouter_cd.py
