@@ -164,10 +164,8 @@ func Distribute() func(c *gin.Context) {
 			}
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
-		if setupErr := SetupContextForSelectedChannel(c, channel, modelRequest.Model); setupErr != nil {
-			abortWithOpenAiMessage(c, setupErr.StatusCode, setupErr.Error())
-			return
-		}
+		// 故意忽略错误, Fetch Task API 的 channel 在这里是空的
+		_ = SetupContextForSelectedChannel(c, channel, modelRequest.Model)
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
