@@ -376,10 +376,6 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if openaiErr == nil {
 		return false
 	}
-	// sudoapi: Never splice another upstream attempt into a committed response.
-	if c.Writer.Written() {
-		return false
-	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
 		return false
 	}
