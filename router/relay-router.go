@@ -4,6 +4,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
+	"github.com/QuantumNous/new-api/middleware/model_text_capture"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/relaykit/types"
 
@@ -85,7 +86,7 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.Use(middleware.Distribute())
 
 		// claude related routes
-		httpRouter.POST("/messages", func(c *gin.Context) {
+		httpRouter.POST("/messages", model_text_capture.Middleware(types.RelayFormatClaude), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatClaude)
 		})
 
@@ -93,12 +94,12 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/completions", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
-		httpRouter.POST("/chat/completions", func(c *gin.Context) {
+		httpRouter.POST("/chat/completions", model_text_capture.Middleware(types.RelayFormatOpenAI), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
 
 		// response related routes
-		httpRouter.POST("/responses", func(c *gin.Context) {
+		httpRouter.POST("/responses", model_text_capture.Middleware(types.RelayFormatOpenAIResponses), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIResponses)
 		})
 		httpRouter.POST("/responses/compact", func(c *gin.Context) {
@@ -146,7 +147,7 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/engines/:model/embeddings", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
-		httpRouter.POST("/models/*path", func(c *gin.Context) {
+		httpRouter.POST("/models/*path", model_text_capture.Middleware(types.RelayFormatGemini), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
 
@@ -204,7 +205,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayGeminiRouter.Use(middleware.Distribute())
 	{
 		// Gemini API 路径格式: /v1beta/models/{model_name}:{action}
-		relayGeminiRouter.POST("/models/*path", func(c *gin.Context) {
+		relayGeminiRouter.POST("/models/*path", model_text_capture.Middleware(types.RelayFormatGemini), func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
 	}
