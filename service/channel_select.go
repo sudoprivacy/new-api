@@ -18,7 +18,9 @@ type RetryParam struct {
 	Retry        *int
 	resetNextTry bool
 
-	ExhaustedChannels []int
+	ExhaustedChannels   []int
+	NonCapacityFailure  bool
+	coordinatedBindings map[int]string
 }
 
 func (p *RetryParam) GetRetry() int {

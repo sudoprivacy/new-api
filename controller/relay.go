@@ -187,13 +187,21 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	// sudoapi: bypass gemini thoughtSignature when channel changes.
 	previousChannelID := -1
+	resetReplayChannel := 0
 
+relayAttempts:
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
 		relayInfo.RetryIndex = retryParam.GetRetry()
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
+			if channelErr != relayInfo.LastError {
+				retryParam.NonCapacityFailure = true
+			}
 			logger.LogError(c, channelErr.Error())
 			newAPIError = channelErr
+			break
+		}
+		if resetReplayChannel != 0 && channel.Id != resetReplayChannel {
 			break
 		}
 
@@ -246,9 +254,19 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
 		// sudoapi: Retry explicit admission failures against remaining authorized channels.
-		service.RecordChannelCapacityFailure(c, newAPIError, channel.Id, retryParam)
+		if !service.RecordChannelCapacityFailure(c, newAPIError, channel.Id, retryParam) {
+			retryParam.NonCapacityFailure = true
+		}
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			break
+		}
+	}
+	// sudoapi: Coordinate Claude resets across native channels.
+	if resetReplayChannel == 0 && newAPIError != nil && newAPIError == relayInfo.LastError {
+		if channelID := service.TryCoordinatedClaudeReset(retryParam); channelID > 0 {
+			resetReplayChannel = channelID
+			retryParam.PrepareClaudeResetReplay(channelID)
+			goto relayAttempts
 		}
 	}
 

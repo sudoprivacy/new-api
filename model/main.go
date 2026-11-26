@@ -316,6 +316,7 @@ func migrateDB() error {
 		&ExternalIdentityClaim{},
 		&PasskeyCredential{},
 		&Option{},
+		&ClaudeResetPending{}, // sudoapi: Coordinate Claude resets across native channels.
 		&Redemption{},
 		&Ability{},
 		&Log{},
@@ -379,6 +380,7 @@ func migrateDBFast() error {
 		{&ExternalIdentityClaim{}, "ExternalIdentityClaim"},
 		{&PasskeyCredential{}, "PasskeyCredential"},
 		{&Option{}, "Option"},
+		{&ClaudeResetPending{}, "ClaudeResetPending"}, // sudoapi: Coordinate Claude resets across native channels.
 		{&Redemption{}, "Redemption"},
 		{&Ability{}, "Ability"},
 		{&Log{}, "Log"},
