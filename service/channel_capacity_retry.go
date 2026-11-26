@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/gin-gonic/gin"
 )
@@ -15,14 +17,14 @@ import (
 // explicit response releases affinity. Ordinary 503s, timeouts and committed
 // streams do not establish that replay is safe. Explicit no-retry and pinned
 // channel policies remain authoritative.
-func RecordChannelCapacityFailure(c *gin.Context, err *types.NewAPIError, channelID int, param *RetryParam) {
+func RecordChannelCapacityFailure(c *gin.Context, err *types.NewAPIError, channelID int, param *RetryParam) bool {
 	if c == nil || param == nil || err == nil || channelID <= 0 || c.Writer.Written() ||
 		err.StatusCode != http.StatusServiceUnavailable ||
 		types.IsSkipRetryError(err) || ShouldSkipRetryAfterChannelAffinityFailure(c) {
-		return
+		return false
 	}
 	if _, pinned := c.Get("specific_channel_id"); pinned {
-		return
+		return false
 	}
 	var kind, message string
 	switch upstream := err.RelayError.(type) {
@@ -31,14 +33,22 @@ func RecordChannelCapacityFailure(c *gin.Context, err *types.NewAPIError, channe
 	case types.OpenAIError: // Non-200 Claude replies use the shared HTTP error parser.
 		kind, message = upstream.Type, upstream.Message
 	default:
-		return
+		return false
 	}
 	if kind != "api_error" || (message != "No available accounts" &&
 		!strings.HasPrefix(message, "No available accounts: ")) {
-		return
+		return false
 	}
 	if !slices.Contains(param.ExhaustedChannels, channelID) {
 		param.ExhaustedChannels = append(param.ExhaustedChannels, channelID)
 	}
+	if param.coordinatedBindings == nil {
+		param.coordinatedBindings = make(map[int]string)
+	}
+	param.coordinatedBindings[channelID] = resetChannelBinding(
+		common.GetContextKeyString(c, constant.ContextKeyChannelBaseUrl),
+		common.GetContextKeyString(c, constant.ContextKeyChannelKey),
+	)
 	ClearCurrentChannelAffinityCache(c)
+	return true
 }
