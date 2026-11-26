@@ -68,6 +68,12 @@ func TestCoordinatedClaudeResetThroughRealRelay(t *testing.T) {
 						w.WriteHeader(http.StatusUnauthorized)
 						return
 					}
+					if merlion && (r.Header.Get("CF-Access-Client-Id") != "edge-service-id" ||
+						r.Header.Get("CF-Access-Client-Secret") != "edge-service-secret" ||
+						r.Header.Get("X-Unrelated-Header") != "" || r.Header.Get("Authorization") != "") {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
 					switch r.URL.Path {
 					case "/v1/sub2api/claude-reset/evidence":
 						probes.Add(1)
@@ -113,9 +119,10 @@ func TestCoordinatedClaudeResetThroughRealRelay(t *testing.T) {
 			t.Setenv("SUDOAPI_RESET_COORDINATOR_PEERS", fmt.Sprintf(`{"110":{"origin":%q,"token":%q},"115":{"origin":%q,"token":%q}}`,
 				fuji.URL, token, merlion.URL, token))
 			primary, fallback := int64(200), int64(100)
+			edgeHeaders := `{"CF-Access-Client-Id":"edge-service-id","cf-access-client-secret":"edge-service-secret","X-Unrelated-Header":"ignore","Authorization":"ignore"}`
 			require.NoError(t, model.BatchInsertChannels([]model.Channel{
 				{Id: 110, Type: constant.ChannelTypeAnthropic, Status: common.ChannelStatusEnabled, Key: "test-native-key", BaseURL: &fuji.URL, Models: "claude-sonnet-4-6", Group: "default", Priority: &primary},
-				{Id: 115, Type: constant.ChannelTypeAnthropic, Status: common.ChannelStatusEnabled, Key: "test-native-key", BaseURL: &merlion.URL, Models: "claude-sonnet-4-6", Group: "default", Priority: &fallback},
+				{Id: 115, Type: constant.ChannelTypeAnthropic, Status: common.ChannelStatusEnabled, Key: "test-native-key", BaseURL: &merlion.URL, Models: "claude-sonnet-4-6", Group: "default", Priority: &fallback, HeaderOverride: &edgeHeaders},
 			}))
 			model.InitChannelCache()
 			user := model.User{Username: "coordinated-reset-fixture", Status: common.UserStatusEnabled, Group: "default", Quota: 10000000}

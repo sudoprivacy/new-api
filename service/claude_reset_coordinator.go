@@ -85,6 +85,17 @@ func (r claudeResetRoute) request(ctx context.Context, action string, input clau
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Api-Key", r.channel.Key)
 	request.Header.Set("X-Sudoapi-Reset-Coordinator", r.peer.Token)
+	// Some managed native origins sit behind Cloudflare Access. Reuse their
+	// configured service identity without inheriting arbitrary relay overrides
+	// or any headers from the user request.
+	for key, value := range r.channel.GetHeaderOverride() {
+		switch http.CanonicalHeaderKey(key) {
+		case "Cf-Access-Client-Id", "Cf-Access-Client-Secret":
+			if credential, ok := value.(string); ok && credential != "" {
+				request.Header.Set(key, credential)
+			}
+		}
+	}
 	// Operator-pinned HTTPS origins use the gateway trust store. Keep the
 	// coordinator credential on that origin even if a server redirects.
 	client := http.Client{
