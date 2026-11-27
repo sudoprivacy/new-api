@@ -4,6 +4,8 @@ package middleware
 
 import (
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -62,6 +64,39 @@ func TestDedicatedTokenAndChannelPair(t *testing.T) {
 	for _, invalid := range []string{"41", "0:17", "41:-1", "41:17:18", "abc:17"} {
 		_, err := common.ParseDedicatedTokenChannel(invalid)
 		require.Error(t, err)
+	}
+}
+
+func TestDedicatedTokenDistributeWithSameConversation(t *testing.T) {
+	setupDashboardAuthMiddlewareTest(t)
+	require.NoError(t, model.DB.AutoMigrate(&model.Channel{}))
+	for _, id := range []int{17, 18} {
+		require.NoError(t, model.DB.Create(&model.Channel{Id: id, Name: "route", Group: "compare", Type: constant.ChannelTypeAnthropic, Key: "fixture-key", Status: common.ChannelStatusEnabled}).Error)
+	}
+	old := common.SDKTestRoute
+	common.SDKTestRoute = common.DedicatedTokenChannel{TokenID: 41, ChannelID: 17}
+	t.Cleanup(func() { common.SDKTestRoute = old })
+	for _, tc := range []struct{ token, channel, status int }{{41, 17, 200}, {42, 17, 403}, {41, 18, 403}, {42, 18, 200}} {
+		engine := gin.New()
+		engine.Use(func(c *gin.Context) {
+			common.SetContextKey(c, constant.ContextKeyTokenId, tc.token)
+			common.SetContextKey(c, constant.ContextKeyTokenGroup, "compare")
+			common.SetContextKey(c, constant.ContextKeyTokenSpecificChannelId, strconv.Itoa(tc.channel))
+		})
+		calls := 0
+		engine.POST("/v1/messages", Distribute(), func(c *gin.Context) {
+			calls++
+			require.Equal(t, "same-session", c.GetHeader("X-Session-ID"))
+			require.Equal(t, tc.channel, common.GetContextKeyInt(c, constant.ContextKeyChannelId))
+			c.Status(200)
+		})
+		req := httptest.NewRequest("POST", "/v1/messages", strings.NewReader(`{"model":"m","messages":[{"role":"user","content":"x"}]}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Session-ID", "same-session")
+		rec := httptest.NewRecorder()
+		engine.ServeHTTP(rec, req)
+		require.Equal(t, tc.status, rec.Code, rec.Body.String())
+		require.Equal(t, tc.status == 200, calls == 1)
 	}
 }
 
