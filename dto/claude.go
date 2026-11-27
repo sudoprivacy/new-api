@@ -233,7 +233,8 @@ type ClaudeRequest struct {
 	Speed json.RawMessage `json:"speed,omitempty"`
 	// ServiceTier specifies upstream service level and may affect billing.
 	// This field is filtered by default and can be enabled via channel setting allow_service_tier.
-	ServiceTier string `json:"service_tier,omitempty"`
+	ServiceTier       string          `json:"service_tier,omitempty"`
+	MessagesSemantics json.RawMessage `json:"sudoapi_messages_semantics,omitempty"`
 }
 
 // OutputConfigForEffort just for extract effort
