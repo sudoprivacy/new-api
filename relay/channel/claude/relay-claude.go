@@ -871,7 +871,7 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 }
 
 func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.NewAPIError) {
-	if info.RelayFormat == types.RelayFormatClaude {
+	if resp != nil && info.RelayFormat == types.RelayFormatClaude {
 		forwardMessagesSemanticsReceipt(c, resp.Header)
 	}
 	claudeInfo := &ClaudeResponseInfo{
