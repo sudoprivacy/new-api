@@ -2,6 +2,26 @@
 
 # Required gateway routes
 
+### Single public key for an SDK comparison
+
+Create a separate, explicit token group with one Messages channel and one
+enabled upstream credential. Use a separately issued public token in this
+group. Set `SDK_TEST_TOKEN_CHANNEL` to the two database IDs in
+`token_id:channel_id` order on every router replica. These are numeric IDs.
+Keep the native sudoapi key in the channel credential store. Set up its
+private sudoapi routing group with only the test account.
+
+The serving check applies in both directions, including an administrator
+selecting a channel, affinity and retry selection. Another token in the
+same group cannot use the test channel. The test token only accepts
+Messages, Chat Completions and Responses generation routes; the router
+makes at most one inference attempt per incoming HTTP request and skips
+reset recovery. Keep the token fixed for the whole client conversation.
+For rollback disable the public test token, drain in-flight requests, then
+change the downstream backend. Start future A/B conversations with new
+session IDs. Activate the token only after every serving replica has the
+same binding.
+
 Set `REQUIRED_CHANNEL_POLICY_FILE` to a JSON declaration mounted read-only in
 the gateway. FujiToken uses Ladder's `deploy/channel-routing-policy.json` as
 the single declaration; do not maintain another list of required IDs in code.

@@ -253,6 +253,12 @@ relayAttempts:
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
+		// A dedicated experiment makes one router attempt per incoming request.
+		// Return here so neither an ambiguous result nor a quota failure can
+		// start a second execution or spend a coordinated reset.
+		if common.SDKTestRoute.ReservesToken(common.GetContextKeyInt(c, constant.ContextKeyTokenId)) {
+			break
+		}
 		// sudoapi: Retry explicit admission failures against remaining authorized channels.
 		if !service.RecordChannelCapacityFailure(c, newAPIError, channel.Id, retryParam) {
 			retryParam.NonCapacityFailure = true
@@ -262,7 +268,7 @@ relayAttempts:
 		}
 	}
 	// sudoapi: Coordinate Claude resets across native channels.
-	if resetReplayChannel == 0 && newAPIError != nil && newAPIError == relayInfo.LastError {
+	if resetReplayChannel == 0 && newAPIError != nil && newAPIError == relayInfo.LastError && !common.SDKTestRoute.ReservesToken(common.GetContextKeyInt(c, constant.ContextKeyTokenId)) {
 		if channelID := service.TryCoordinatedClaudeReset(retryParam); channelID > 0 {
 			resetReplayChannel = channelID
 			retryParam.PrepareClaudeResetReplay(channelID)
