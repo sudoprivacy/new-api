@@ -32,6 +32,14 @@ type ModelRequest struct {
 
 func Distribute() func(c *gin.Context) {
 	return func(c *gin.Context) {
+		if common.SDKTestRoute.ReservesToken(common.GetContextKeyInt(c, constant.ContextKeyTokenId)) {
+			switch c.Request.URL.Path {
+			case "/v1/messages", "/v1/chat/completions", "/v1/responses":
+			default:
+				abortWithOpenAiMessage(c, http.StatusForbidden, "This dedicated token is scoped to generation endpoints", types.ErrorCodeAccessDenied)
+				return
+			}
+		}
 		var channel *model.Channel
 		channelId, ok := common.GetContextKey(c, constant.ContextKeyTokenSpecificChannelId)
 		modelRequest, shouldSelectChannel, err := getModelRequest(c)
@@ -164,8 +172,12 @@ func Distribute() func(c *gin.Context) {
 			}
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
-		// 故意忽略错误, Fetch Task API 的 channel 在这里是空的
-		_ = SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		// Fetch-task routes can have no initial channel. Authorization failures
+		// must terminate before a relay handler or a retry can use the context.
+		if setupErr := SetupContextForSelectedChannel(c, channel, modelRequest.Model); setupErr != nil && setupErr.GetErrorCode() == types.ErrorCodeAccessDenied {
+			abortWithOpenAiMessage(c, setupErr.StatusCode, setupErr.Error(), setupErr.GetErrorCode())
+			return
+		}
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
@@ -445,6 +457,10 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	c.Set("original_model", modelName) // for retry
 	if channel == nil {
 		return types.NewError(errors.New("channel is nil"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+	}
+	if !common.SDKTestRoute.Allows(common.GetContextKeyInt(c, constant.ContextKeyTokenId), channel.Id) {
+		return types.NewError(errors.New("this token and channel have an exclusive binding"), types.ErrorCodeAccessDenied,
+			types.ErrOptionWithStatusCode(http.StatusForbidden), types.ErrOptionWithSkipRetry())
 	}
 	if !allowsExclusiveChannelGroup(c, channel) {
 		return types.NewError(errors.New("this private channel requires an explicitly scoped token group"), types.ErrorCodeAccessDenied,

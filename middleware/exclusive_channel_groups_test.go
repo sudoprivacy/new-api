@@ -41,6 +41,30 @@ func TestExclusiveChannelGroups(t *testing.T) {
 	}
 }
 
+func TestDedicatedTokenAndChannelPair(t *testing.T) {
+	old := common.SDKTestRoute
+	t.Cleanup(func() { common.SDKTestRoute = old })
+	pair, err := common.ParseDedicatedTokenChannel("41:17")
+	require.NoError(t, err)
+	common.SDKTestRoute = pair
+	for _, ids := range [][2]int{{42, 17}, {0, 17}, {41, 18}} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		common.SetContextKey(c, constant.ContextKeyTokenId, ids[0])
+		common.SetContextKey(c, constant.ContextKeyTokenGroup, "sdk-test")
+		err := SetupContextForSelectedChannel(c, &model.Channel{Id: ids[1], Group: "sdk-test"}, "fixture")
+		require.NotNil(t, err)
+		require.Equal(t, 403, err.StatusCode)
+		_, hasKey := c.Get(string(constant.ContextKeyChannelKey))
+		require.False(t, hasKey)
+	}
+	require.True(t, pair.Allows(41, 17))
+	require.True(t, pair.Allows(42, 18))
+	for _, invalid := range []string{"41", "0:17", "41:-1", "41:17:18", "abc:17"} {
+		_, err := common.ParseDedicatedTokenChannel(invalid)
+		require.Error(t, err)
+	}
+}
+
 func TestExclusiveChannelGroupsDisabled(t *testing.T) {
 	t.Setenv("REQUIRE_EXPLICIT_TOKEN_GROUPS", "")
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())

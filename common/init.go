@@ -66,6 +66,11 @@ func InitEnv() {
 		log.Fatal(err)
 	}
 	initUserSessionSettings()
+	pair, err := ParseDedicatedTokenChannel(os.Getenv("SDK_TEST_TOKEN_CHANNEL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	SDKTestRoute = pair
 	if os.Getenv("SQLITE_PATH") != "" {
 		SQLitePath = os.Getenv("SQLITE_PATH")
 	}
