@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ var ErrRequiredChannelPolicy = errors.New("required channel routing policy is un
 type requiredChannelRoute struct {
 	groups, models map[string]bool
 	private        bool
+	baseURL        string
 }
 
 type requiredChannelPolicy struct {
@@ -36,6 +38,10 @@ type requiredChannelPolicy struct {
 		RequiredGroups []string `json:"required_groups"`
 		RequiredModels []string `json:"required_models"`
 	} `json:"shared_channels"`
+	UpstreamRoutes []struct {
+		ChannelIDs []int  `json:"channel_ids"`
+		BaseURL    string `json:"base_url"`
+	} `json:"upstream_routes"`
 	routes       map[int]requiredChannelRoute
 	privateNames map[string]bool
 }
@@ -118,6 +124,20 @@ func loadRequiredChannelPolicy() (*requiredChannelPolicy, error) {
 	if len(p.routes) == 0 {
 		return nil, ErrRequiredChannelPolicy
 	}
+	for _, upstream := range p.UpstreamRoutes {
+		parsed, err := url.Parse(upstream.BaseURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") || len(upstream.ChannelIDs) == 0 {
+			return nil, ErrRequiredChannelPolicy
+		}
+		for _, id := range upstream.ChannelIDs {
+			route, exists := p.routes[id]
+			if !exists || route.baseURL != "" {
+				return nil, ErrRequiredChannelPolicy
+			}
+			route.baseURL = strings.TrimRight(upstream.BaseURL, "/")
+			p.routes[id] = route
+		}
+	}
 	return &p, nil
 }
 
@@ -132,6 +152,9 @@ func (p *requiredChannelPolicy) validate(current, candidate *Channel) error {
 		current.Status == common.ChannelStatusAutoDisabled && candidate.Status == current.Status
 	if candidate.Type != constant.ChannelTypeAnthropic || !statusOK {
 		return fmt.Errorf("%w (channel %d)", ErrRequiredChannelRoute, current.Id)
+	}
+	if route.baseURL != "" && (candidate.BaseURL == nil || strings.TrimRight(*candidate.BaseURL, "/") != route.baseURL) {
+		return fmt.Errorf("%w: managed upstream required (channel %d)", ErrRequiredChannelRoute, current.Id)
 	}
 	groups := make(map[string]bool)
 	for _, name := range strings.Split(candidate.Group, ",") {
@@ -184,7 +207,7 @@ func writeRequiredChannelConfiguration(db *gorm.DB, selects func(*Channel) bool,
 	sort.Ints(ids)
 	return db.Transaction(func(tx *gorm.DB) error {
 		var rows []Channel
-		if err := lockForUpdate(tx.Model(&Channel{}).Select("id", "type", "status", "models", commonGroupCol, "tag").Where("id IN ?", ids).Order("id")).Find(&rows).Error; err != nil {
+		if err := lockForUpdate(tx.Model(&Channel{}).Select("id", "type", "status", "models", commonGroupCol, "tag", "base_url").Where("id IN ?", ids).Order("id")).Find(&rows).Error; err != nil {
 			return err
 		}
 		for _, row := range rows {
@@ -220,6 +243,9 @@ func writeRequiredChannel(channel *Channel, save bool) error {
 		}
 		if save || channel.Models != "" {
 			row.Models = channel.Models
+		}
+		if save || channel.BaseURL != nil {
+			row.BaseURL = channel.BaseURL
 		}
 	}, false, func(tx *gorm.DB) error {
 		if save {

@@ -32,6 +32,31 @@ func requiredChannelFixture(t *testing.T) (Channel, Channel, Channel) {
 	return shared, private, other
 }
 
+func TestRequiredChannelManagedUpstreamCannotBypassPublicationProxy(t *testing.T) {
+	shared, _, _ := requiredChannelFixture(t)
+	path := os.Getenv("REQUIRED_CHANNEL_POLICY_FILE")
+	body, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var policy map[string]any
+	require.NoError(t, common.Unmarshal(body, &policy))
+	policy["upstream_routes"] = []any{map[string]any{"channel_ids": []int{shared.Id}, "base_url": "https://native.example.test"}}
+	body, err = common.Marshal(policy)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, body, 0600))
+	shared.BaseURL = common.GetPointer("https://native.example.test")
+	require.NoError(t, shared.Update(), "explicit migration to the declared frontend remains possible")
+	for _, base := range []string{"http://native.example.test:8080", "https://native.example.test:18080", "https://other.example.test"} {
+		patch := shared
+		patch.BaseURL = common.GetPointer(base)
+		require.ErrorIs(t, patch.Update(), ErrRequiredChannelRoute)
+		stored, err := GetChannelById(shared.Id, true)
+		require.NoError(t, err)
+		require.Equal(t, "https://native.example.test", *stored.BaseURL)
+	}
+	shared.Name = "ordinary metadata retained"
+	require.NoError(t, shared.Update())
+}
+
 func TestRequiredChannelConfigurationWritesCannotDropRoutes(t *testing.T) {
 	shared, private, _ := requiredChannelFixture(t)
 	for name, change := range map[string]func(*Channel){
