@@ -31,6 +31,7 @@ func TestClaudeCapacityFailoverPreservesScopeAndAffinity(t *testing.T) {
 			pinned            int
 			primaryFails      bool
 			fallbackSucceeds  bool
+			fallbackStatus    int
 			primaryOtherGroup bool
 			skipRetry         bool
 			samePriority      bool
@@ -44,6 +45,7 @@ func TestClaudeCapacityFailoverPreservesScopeAndAffinity(t *testing.T) {
 			{name: "primary_to_healthy_fallback", pinned: 42, primaryFails: true, fallbackSucceeds: true, wantStatus: 200, wantPrimary: 1, wantFallback: 1},
 			{name: "healthy_affinity_stays", pinned: 74, fallbackSucceeds: true, wantStatus: 200, wantFallback: 1},
 			{name: "primary_exhausted", pinned: 42, primaryFails: true, wantStatus: 503, wantPrimary: 1, wantFallback: 1},
+			{name: "admission_then_redirect", pinned: 42, primaryFails: true, fallbackStatus: 302, wantStatus: 302, wantPrimary: 1, wantFallback: 3},
 			{name: "same_priority", pinned: 74, samePriority: true, wantStatus: 200, wantPrimary: 1, wantFallback: 1},
 			{name: "unauthorized_primary", pinned: 74, primaryOtherGroup: true, wantStatus: 503, wantFallback: 1},
 			{name: "explicit_no_retry", pinned: 74, skipRetry: true, wantStatus: 503, wantFallback: 1},
@@ -75,8 +77,10 @@ func TestClaudeCapacityFailoverPreservesScopeAndAffinity(t *testing.T) {
 						SkipRetryOnFailure: test.skipRetry, IncludeRuleName: true, IncludeUsingGroup: true}}}
 				t.Cleanup(func() { service.ClearChannelAffinityCacheAll(); *affinity = originalAffinity })
 				var primaryCalls, fallbackCalls atomic.Int32
-				primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					primaryCalls.Add(1)
+					assert.Equal(t, "primary", r.Header.Get("X-Fixture-Route"))
+					assert.Empty(t, r.Header.Get("X-Fixture-Fallback"))
 					w.Header().Set("Content-Type", "application/json")
 					if test.primaryFails {
 						w.WriteHeader(503)
@@ -91,9 +95,15 @@ func TestClaudeCapacityFailoverPreservesScopeAndAffinity(t *testing.T) {
 					_, _ = io.WriteString(w, `{"id":"msg_capacity_fixture","type":"message","role":"assistant","model":"claude-sonnet-4-6","content":[{"type":"text","text":"RECOVERED"}],"stop_reason":"end_turn","usage":{"input_tokens":2,"output_tokens":1}}`)
 				}))
 				defer primary.Close()
-				fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					fallbackCalls.Add(1)
+					assert.Equal(t, "fallback", r.Header.Get("X-Fixture-Fallback"))
+					assert.Empty(t, r.Header.Get("X-Fixture-Route"))
 					w.Header().Set("Content-Type", "application/json")
+					if test.fallbackStatus != 0 {
+						w.WriteHeader(test.fallbackStatus)
+						return
+					}
 					if test.fallbackSucceeds {
 						_, _ = io.WriteString(w, `{"id":"msg_fallback_fixture","type":"message","role":"assistant","model":"claude-sonnet-4-6","content":[{"type":"text","text":"RECOVERED"}],"stop_reason":"end_turn","usage":{"input_tokens":2,"output_tokens":1}}`)
 						return
@@ -114,6 +124,10 @@ func TestClaudeCapacityFailoverPreservesScopeAndAffinity(t *testing.T) {
 					{Id: 42, Name: "primary-fixture", Type: constant.ChannelTypeAnthropic, Status: common.ChannelStatusEnabled, Key: "upstream-fixture", BaseURL: &primary.URL, Models: "claude-sonnet-4-6", Group: primaryGroup, Priority: &primaryPriority},
 					{Id: 74, Name: "fallback-fixture", Type: constant.ChannelTypeAnthropic, Status: common.ChannelStatusEnabled, Key: "upstream-fixture", BaseURL: &fallback.URL, Models: "claude-sonnet-4-6", Group: "default", Priority: &fallbackPriority},
 				}
+				primaryHeaders, fallbackHeaders := `{"X-Fixture-Route":"primary"}`, `{"X-Fixture-Fallback":"fallback"}`
+				paramOverride := `{"temperature":1}`
+				channels[0].HeaderOverride, channels[1].HeaderOverride = &primaryHeaders, &fallbackHeaders
+				channels[0].ParamOverride = &paramOverride
 				require.NoError(t, model.BatchInsertChannels(channels))
 				model.InitChannelCache()
 				user := model.User{Username: "capacity-fixture-user", Status: common.UserStatusEnabled, Group: "default", Quota: 10000000}
@@ -151,6 +165,9 @@ func TestClaudeCapacityFailoverPreservesScopeAndAffinity(t *testing.T) {
 					assert.Equal(t, winner, consumes[0].ChannelId)
 				} else {
 					assert.Empty(t, consumes)
+					if test.fallbackStatus != 0 {
+						assert.NotContains(t, response.Body.String(), "No available accounts")
+					}
 					if test.skipRetry {
 						assert.True(t, found)
 						assert.Equal(t, 74, bound)

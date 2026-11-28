@@ -167,7 +167,8 @@ func Distribute() func(c *gin.Context) {
 		// 故意忽略错误, Fetch Task API 的 channel 在这里是空的
 		_ = SetupContextForSelectedChannel(c, channel, modelRequest.Model)
 		c.Next()
-		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
+		// sudoapi: A redirect from an upstream login gate is not a successful relay.
+		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusMultipleChoices {
 			service.RecordChannelAffinity(c, channel.Id)
 		}
 	}
